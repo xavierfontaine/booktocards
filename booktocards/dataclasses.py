@@ -28,9 +28,9 @@ class TokenInfo:
 
 @dataclass
 class VocabCard:
+    entry_id: int
     lemma: str
     count: Optional[int] = None
-    entry_id: Optional[int] = None
     kana_forms_str: Optional[str] = None
     kanji_forms_str: Optional[str] = None
     is_frequent: Optional[bool] = None
@@ -56,9 +56,8 @@ def token_info_to_voc_cards(
     token_sents = [sentences[sent_id] for sent_id in token_info.sent_ids]
     # Create each card
     for entry in token_info.parsed_dict_entries:
-        card = VocabCard(lemma=token_info.lemma)
+        card = VocabCard(entry_id=entry.entry_id, lemma=token_info.lemma)
         card.count = token_info.count
-        card.entry_id = entry.entry_id
         card.kana_forms_str = ", ".join(entry.kana_forms)
         card.kanji_forms_str = ", ".join(entry.kanji_forms)
         card.is_frequent = entry.is_frequent

@@ -79,9 +79,9 @@ from booktocards.dataclasses import TokenInfo
 # Config
 # ======
 # Path to input
-INPUT_FILEPATH = "/home/xavier/Git/booktocards/data/in/another_1st_page.txt"
+INPUT_FILEPATH = "/home/xavier/Documents/Git/0_xavier_personal/booktocards/data/in/notion_Zeals_NLG研究開発_予算計画概要.txt"
 # Path to output
-OUTPUT_FOLDER = "/home/xavier/Git/booktocards/data/out/"
+OUTPUT_FOLDER = "/home/xavier/Documents/Git/0_xavier_personal/booktocards/data/out/"
 # POS to be removed
 #EXCLUDED_POS = ["AUX", "PUNCT", "SYM", "SPACE", "NUM", "PART"]  # minimal
 EXCLUDED_POS = ["ADP", "AUX", "CONJ", "DET", "INJT", "NUM", "PART", "PUNCT",
@@ -221,6 +221,8 @@ vocab_df = pd.DataFrame(vocab_cards)
 filename_stem = pathlib.Path(INPUT_FILEPATH).stem
 source_stamp = filename_stem + "-" + datetime.today().strftime("%Y-%m-%d")
 vocab_df["source"] = source_stamp
+# Replace all newlines by <br/> for ingestion by Anki
+vocab_df = vocab_df.replace({"\n": "<br/>"}, regex=True).replace({"\r": "<br/>"}, regex=True)
 # To csv
 out_filename = source_stamp + ".csv"
 out_filepath = os.path.join(OUTPUT_FOLDER, out_filename)

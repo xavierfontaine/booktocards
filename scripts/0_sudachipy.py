@@ -224,7 +224,7 @@ vocab_df["source"] = source_stamp
 # To csv
 out_filename = source_stamp + ".csv"
 out_filepath = os.path.join(OUTPUT_FOLDER, out_filename)
-vocab_df.to_csv(out_filepath)
+vocab_df.to_csv(out_filepath, index = False)
 exit()
 
 

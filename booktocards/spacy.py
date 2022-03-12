@@ -42,7 +42,6 @@ class Tokenizer:
         ]
         return tok_dictform_pos
 
-
 def sentencize(doc: str, spacy_model="ja_core_news_sm") -> List[Sentence]:
     # Get sentencizer
     nlp = spacy.load(
@@ -52,4 +51,6 @@ def sentencize(doc: str, spacy_model="ja_core_news_sm") -> List[Sentence]:
     # Split
     spacified_doc = nlp(doc)
     sents = [str(sent).strip() for sent in spacified_doc.sents]
+    # Further split wrt line breaks
+    sents = [l for sent in sents for l in sent.splitlines() if l != ""]
     return sents

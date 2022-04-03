@@ -2,6 +2,7 @@ import tqdm
 import pathlib
 import os
 import pandas as pd
+import logging
 from functools import reduce
 from datetime import datetime
 from jamdict import Jamdict, jmdict
@@ -79,25 +80,50 @@ from booktocards.dataclasses import TokenInfo
 # Config
 # ======
 # Path to input
-INPUT_FILEPATH = "/home/xavier/Documents/Git/0_xavier_personal/booktocards/data/in/notion_Zeals_NLG研究開発_予算計画概要.txt"
+INPUT_FILEPATH = ""
 # Path to output
-OUTPUT_FOLDER = "/home/xavier/Documents/Git/0_xavier_personal/booktocards/data/out/"
+OUTPUT_FOLDER = ""
 # POS to be removed
-#EXCLUDED_POS = ["AUX", "PUNCT", "SYM", "SPACE", "NUM", "PART"]  # minimal
-EXCLUDED_POS = ["ADP", "AUX", "CONJ", "DET", "INJT", "NUM", "PART", "PUNCT",
-        "SCONJ", "SYM", "SPACE"]
+# EXCLUDED_POS = ["AUX", "PUNCT", "SYM", "SPACE", "NUM", "PART"]  # minimal
+EXCLUDED_POS = [
+    "ADP",
+    "AUX",
+    "CONJ",
+    "DET",
+    "INJT",
+    "NUM",
+    "PART",
+    "PUNCT",
+    "SCONJ",
+    "SYM",
+    "SPACE",
+]
 SPLIT_MODE = "C"
 # Lowest vocab frequency to be considered
 LOWEST_FREQ = 1
 # Number of example sentences per vocab
-N_EX_SENTS = 3
+N_EX_SENTS = 4
 # Should we reorder vocab cards by counts?
 REORDER_VOCAB_COUNT = True
+# Should we consider linebreaks as additionnal sentence delimiters?
+SPLIT_AT_LINEBREAK = True
+# Technical - number of rows per sentencized chunked (None if no chunking)
+N_LINES_PER_CHUNK = 700
+
+
+# ======
+# Logger
+# ======
+logging.basicConfig(
+    format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s", level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
 
 # ========
 # Document
 # ========
+logger.info("Read document")
 with open(INPUT_FILEPATH, "r") as f:
     doc = f.read()
 
@@ -105,8 +131,13 @@ with open(INPUT_FILEPATH, "r") as f:
 # ==============================
 # Make (sentence, lemmas) table
 # ==============================
+logger.info("Sentencize")
 # Get sentences
-sents = jp_spacy.sentencize(doc=doc)
+sents = jp_spacy.sentencize(
+    doc=doc,
+    n_lines_per_chunk=N_LINES_PER_CHUNK,
+    split_at_linebreak=SPLIT_AT_LINEBREAK,
+)
 # For each sentence, get spacy tokenization objects
 tokenizer = jp_spacy.Tokenizer(
     split_mode=SPLIT_MODE, spacy_model="ja_core_news_sm"
@@ -123,25 +154,28 @@ sents_df = pd.DataFrame({"sent": sents, "lemmas": sents_lemmas})
 # ==============================
 # Get unique (lemma, count)
 # ==============================
+logger.info("Get unique (lemma, count)")
 # Get tokens and pos
 lemmas = reduce(lambda x, y: x + y, sents_df["lemmas"].to_list())
 # Get counts
 counts = iterables.ordered_counts(it=lemmas)
 # Flatten
 lemma_counts = [(lemma, count) for lemma, count in counts.items()]
-print(lemma_counts)
+#print(lemma_counts)
 
 
 # ================
 # Drop rare lemmas
 # ================
+logger.info("Drop rare lemmas")
 lemma_counts = [lc for lc in lemma_counts if lc[1] >= LOWEST_FREQ]
-print(lemma_counts)
+#print(lemma_counts)
 
 
 # ============
 # Add sent ids
 # ============
+logger.info("Add sentence ids")
 # For each, get associated sentence ids
 lemma_counts_sentids = []
 for lemma, count in lemma_counts:
@@ -150,20 +184,21 @@ for lemma, count in lemma_counts:
     ]
     sent_ids = sent_ids[: min(len(sent_ids), N_EX_SENTS)]
     lemma_counts_sentids.append((lemma, count, sent_ids))
-print(lemma_counts_sentids)
+#print(lemma_counts_sentids)
 
 # Create TokenInfo data objects
 token_infos = [
     TokenInfo(lemma=lemma, count=count, sent_ids=sent_ids)
     for lemma, count, sent_ids in lemma_counts_sentids
 ]
-for info in token_infos:
-    print(info)
+#for info in token_infos:
+#    print(info)
 
 
 # =======================
 # Get dictionnary entries
 # =======================
+logger.info("Get dictionnary entries")
 for info in token_infos:
     info.dict_entries = jp_jamdict.get_dict_entries(
         query=info.lemma,
@@ -171,23 +206,25 @@ for info in token_infos:
         drop_unfreq_readings=True,
         strict_lookup=True,
     )
-for info in token_infos:
-    print(info)
+#for info in token_infos:
+#    print(info)
 
 
 # ==================
 # Parse dict entries
 # ==================
+logger.info("Parse dictionnary entries")
 for info in token_infos:
     info.parsed_dict_entries = [
         jp_jamdict.parse_dict_entry(entry=entry) for entry in info.dict_entries
     ]
-    print(info)
+    #print(info)
 
 
 # ============
 # Create cards
 # ============
+logger.info("Create cards")
 vocab_cards = list()
 # Get sentences as {sent_id: sent_str}
 sentences = {idx: sents_df.loc[idx, "sent"] for idx in sents_df.index}
@@ -203,30 +240,34 @@ for token_info in token_infos:
 # Reorder by count
 # ================
 if REORDER_VOCAB_COUNT:
+    logger.info("Roerder by vocab count")
     sort_index = iterables.argsort(l=[card.count for card in vocab_cards])
     vocab_cards = [vocab_cards[idx] for idx in sort_index]
 
 
-for card in vocab_cards:
-    print("\n")
-    print(card)
-    print(card.examples_str)
+#for card in vocab_cards:
+#    print("\n")
+#    print(card)
+#    print(card.examples_str)
 
 
 # ======
 # To csv
 # ======
+logger.info("Write to csv")
 vocab_df = pd.DataFrame(vocab_cards)
 # Add a column naming the source
 filename_stem = pathlib.Path(INPUT_FILEPATH).stem
 source_stamp = filename_stem + "-" + datetime.today().strftime("%Y-%m-%d")
 vocab_df["source"] = source_stamp
 # Replace all newlines by <br/> for ingestion by Anki
-vocab_df = vocab_df.replace({"\n": "<br/>"}, regex=True).replace({"\r": "<br/>"}, regex=True)
+vocab_df = vocab_df.replace({"\n": "<br/>"}, regex=True).replace(
+    {"\r": "<br/>"}, regex=True
+)
 # To csv
 out_filename = source_stamp + ".csv"
 out_filepath = os.path.join(OUTPUT_FOLDER, out_filename)
-vocab_df.to_csv(out_filepath, index = False)
+vocab_df.to_csv(out_filepath, index=False)
 exit()
 
 

@@ -85,21 +85,6 @@ INPUT_FILEPATH = "scp_test.txt"
 # Path to output
 OUTPUT_FOLDER = os.path.join(io.get_data_path(), "out")
 # Tokenizer to use
-tokenizer_name: Literal["sudachi", "spacy"] = "sudachi"
-# POS to be removed
-EXCLUDED_POS_SPACY = [
-    "ADP",
-    "AUX",
-    "CONJ",
-    "DET",
-    "INJT",
-    "NUM",
-    "PART",
-    "PUNCT",
-    "SCONJ",
-    "SYM",
-    "SPACE",
-]
 EXCLUDED_POS_SUDACHY = [
     # Based on https://github.com/explosion/spaCy/blob/e6f91b6f276e90c32253d21ada29cc20108d1170/spacy/lang/ja/tag_orth_map.py
     # ADP
@@ -173,30 +158,17 @@ sents = jp_spacy.sentencize(
     split_at_linebreak=SPLIT_AT_LINEBREAK,
 )
 # For each sentence, tokenize
-if tokenizer_name == "spacy":
-    tokenizer = jp_spacy.Tokenizer(
-        split_mode=SPLIT_MODE, spacy_model="ja_core_news_sm"
+tokenizer = jp_sudachi.Tokenizer(split_mode=SPLIT_MODE, dict_name="full")
+sents_spacytok = [tokenizer.tokenize(doc=sent) for sent in sents]
+_ = [
+    tokenizer.filter_on_pos(
+        dictform_pos_doc=sent_spacytok,
+        excluded_pos=EXCLUDED_POS_SUDACHY,
     )
-    sents_spacytok = [
-        tokenizer.tokenize(doc=sent, excluded_pos=EXCLUDED_POS_SPACY)
-        for sent in sents
-    ]
-    # Keep only lemmas
-    sents_lemmas = [[lemma for _, lemma, _ in sent] for sent in sents_spacytok]
-elif tokenizer_name == "sudachi":
-    tokenizer = jp_sudachi.Tokenizer(split_mode=SPLIT_MODE, dict_name="full")
-    sents_spacytok = [tokenizer.tokenize(doc=sent) for sent in sents]
-    _ = [
-        tokenizer.filter_on_pos(
-            dictform_pos_doc=sent_spacytok,
-            excluded_pos=EXCLUDED_POS_SUDACHY,
-        )
-        for sent_spacytok in sents_spacytok
-    ]
-    # Keep only lemmas
-    sents_lemmas = [[lemma for lemma, _ in sent] for sent in sents_spacytok]
-else:
-    raise ValueError(f"{tokenizer_name=}")
+    for sent_spacytok in sents_spacytok
+]
+# Keep only lemmas
+sents_lemmas = [[lemma for lemma, _ in sent] for sent in sents_spacytok]
 # Table
 sents_df = pd.DataFrame({"sent": sents, "lemmas": sents_lemmas})
 

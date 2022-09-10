@@ -103,7 +103,7 @@ def sentencize(
 def _chunkify_on_linebreaks(
     doc: str,
     n_lines_per_chunk: int,
-)-> List[str]:
+) -> List[str]:
     """
     Create text chunks, each chunk containing at most `n_lines_per_chunk` lines
     """

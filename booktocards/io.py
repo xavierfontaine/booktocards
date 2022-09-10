@@ -4,6 +4,7 @@ Utils for io
 import booktocards
 import os
 
+
 def get_lib_path():
     """Path to current library"""
     return os.path.join(

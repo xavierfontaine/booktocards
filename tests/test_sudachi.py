@@ -1,5 +1,6 @@
 from booktocards.sudachi import filter_on_pos
 
+
 def test_exclusion_work():
     dictform_pos_doc = [
         ("lemma1", ("noun", "bla", "bla", "bla")),
@@ -9,7 +10,9 @@ def test_exclusion_work():
         ("lemma5", ("past participle", "fem", "bla", "bla")),
     ]
     excluded_pos = [
-        ["noun",],
+        [
+            "noun",
+        ],
         ["adj", "fem"],
     ]
     exp_out = [
@@ -17,6 +20,7 @@ def test_exclusion_work():
         ("lemma4", ("adj", "masc", "bla", "bla")),
         ("lemma5", ("past participle", "fem", "bla", "bla")),
     ]
-    obs_out = filter_on_pos(dictform_pos_doc=dictform_pos_doc,
-            excluded_pos=excluded_pos)
+    obs_out = filter_on_pos(
+        dictform_pos_doc=dictform_pos_doc, excluded_pos=excluded_pos
+    )
     assert exp_out == obs_out

@@ -1,3 +1,4 @@
+from typing import Literal
 import tqdm
 import pathlib
 import os
@@ -11,7 +12,7 @@ from booktocards import sudachi as jp_sudachi
 from booktocards import spacy as jp_spacy
 from booktocards import jamdict as jp_jamdict
 from booktocards import dataclasses as jp_dataclasses
-from booktocards import iterables
+from booktocards import iterables, io
 from booktocards.dataclasses import TokenInfo
 
 # TODO:
@@ -80,12 +81,13 @@ from booktocards.dataclasses import TokenInfo
 # Config
 # ======
 # Path to input
-INPUT_FILEPATH = ""
+INPUT_FILEPATH = "scp_test.txt"
 # Path to output
-OUTPUT_FOLDER = ""
+OUTPUT_FOLDER = os.path.join(io.get_data_path(), "out")
+# Tokenizer to use
+tokenizer_name: Literal["sudachi", "spacy"] = "sudachi"
 # POS to be removed
-# EXCLUDED_POS = ["AUX", "PUNCT", "SYM", "SPACE", "NUM", "PART"]  # minimal
-EXCLUDED_POS = [
+EXCLUDED_POS_SPACY = [
     "ADP",
     "AUX",
     "CONJ",
@@ -97,6 +99,35 @@ EXCLUDED_POS = [
     "SCONJ",
     "SYM",
     "SPACE",
+]
+EXCLUDED_POS_SUDACHY = [
+    # Based on https://github.com/explosion/spaCy/blob/e6f91b6f276e90c32253d21ada29cc20108d1170/spacy/lang/ja/tag_orth_map.py
+    # ADP
+    ["助詞", "格助詞"],
+    ["助詞", "係助詞"],
+    ["助詞", "副助詞"],
+    # AUX
+    ["形状詞", "助動詞語幹"],
+    ["助動詞"],
+    ["接尾辞", "形容詞的"],
+    ["動詞", "非自立可能"],
+    ["名詞", "助動詞語幹"],
+    # DET
+    ["連体詞"],
+    # NUM
+    ["名詞", "数詞"],
+    # PART
+    ["助詞", "終助詞"],
+    ["接尾辞", "形状詞的"],
+    ["接尾辞", "動詞的"],
+    # PUNCT & SYM (except some emoji)
+    ["補助記号"],
+    ["絵文字・記号等"],
+    # SCONJ
+    ["助詞", "準体助詞"],
+    ["助詞", "接続助詞"],
+    # SPACE
+    ["空白"],
 ]
 SPLIT_MODE = "C"
 # Lowest vocab frequency to be considered
@@ -115,7 +146,8 @@ N_LINES_PER_CHUNK = 700
 # Logger
 # ======
 logging.basicConfig(
-    format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s", level=logging.INFO
+    format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
+    level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
 
@@ -123,9 +155,11 @@ logger = logging.getLogger(__name__)
 # ========
 # Document
 # ========
-logger.info("Read document")
-with open(INPUT_FILEPATH, "r") as f:
-    doc = f.read()
+# TODO: uncomment
+# logger.info("Read document")
+# with open(INPUT_FILEPATH, "r") as f:
+#    doc = f.read()
+doc = """SCP-002-JPは厚さ1メートルのコンクリートで覆われた半径8メートル高さ6メートルのドーム状の収容棺にて密閉され、同じ構造を持った収容室内にて管理されています。コンクリート棺は監視カメラによって24時間体制で監視され、異常があった場合はバイオハザードスーツを着用したDクラス職員によって即座に修復がなされます。スーツは焼却処分を行い、携わった職員は米、小麦などの食事を与えた後24時間の間隔離されます。職員に異常が見られた場合は即座に処理を行ってください。"""
 
 
 # ==============================
@@ -138,15 +172,31 @@ sents = jp_spacy.sentencize(
     n_lines_per_chunk=N_LINES_PER_CHUNK,
     split_at_linebreak=SPLIT_AT_LINEBREAK,
 )
-# For each sentence, get spacy tokenization objects
-tokenizer = jp_spacy.Tokenizer(
-    split_mode=SPLIT_MODE, spacy_model="ja_core_news_sm"
-)
-sents_spacytok = [
-    tokenizer.tokenize(doc=sent, excluded_pos=EXCLUDED_POS) for sent in sents
-]
-# Keep only lemmas
-sents_lemmas = [[lemma for _, lemma, _ in sent] for sent in sents_spacytok]
+# For each sentence, tokenize
+if tokenizer_name == "spacy":
+    tokenizer = jp_spacy.Tokenizer(
+        split_mode=SPLIT_MODE, spacy_model="ja_core_news_sm"
+    )
+    sents_spacytok = [
+        tokenizer.tokenize(doc=sent, excluded_pos=EXCLUDED_POS_SPACY)
+        for sent in sents
+    ]
+    # Keep only lemmas
+    sents_lemmas = [[lemma for _, lemma, _ in sent] for sent in sents_spacytok]
+elif tokenizer_name == "sudachi":
+    tokenizer = jp_sudachi.Tokenizer(split_mode=SPLIT_MODE, dict_name="full")
+    sents_spacytok = [tokenizer.tokenize(doc=sent) for sent in sents]
+    _ = [
+        tokenizer.filter_on_pos(
+            dictform_pos_doc=sent_spacytok,
+            excluded_pos=EXCLUDED_POS_SUDACHY,
+        )
+        for sent_spacytok in sents_spacytok
+    ]
+    # Keep only lemmas
+    sents_lemmas = [[lemma for lemma, _ in sent] for sent in sents_spacytok]
+else:
+    raise ValueError(f"{tokenizer_name=}")
 # Table
 sents_df = pd.DataFrame({"sent": sents, "lemmas": sents_lemmas})
 
@@ -161,7 +211,7 @@ lemmas = reduce(lambda x, y: x + y, sents_df["lemmas"].to_list())
 counts = iterables.ordered_counts(it=lemmas)
 # Flatten
 lemma_counts = [(lemma, count) for lemma, count in counts.items()]
-#print(lemma_counts)
+# print(lemma_counts)
 
 
 # ================
@@ -169,7 +219,7 @@ lemma_counts = [(lemma, count) for lemma, count in counts.items()]
 # ================
 logger.info("Drop rare lemmas")
 lemma_counts = [lc for lc in lemma_counts if lc[1] >= LOWEST_FREQ]
-#print(lemma_counts)
+# print(lemma_counts)
 
 
 # ============
@@ -184,14 +234,14 @@ for lemma, count in lemma_counts:
     ]
     sent_ids = sent_ids[: min(len(sent_ids), N_EX_SENTS)]
     lemma_counts_sentids.append((lemma, count, sent_ids))
-#print(lemma_counts_sentids)
+# print(lemma_counts_sentids)
 
 # Create TokenInfo data objects
 token_infos = [
     TokenInfo(lemma=lemma, count=count, sent_ids=sent_ids)
     for lemma, count, sent_ids in lemma_counts_sentids
 ]
-#for info in token_infos:
+# for info in token_infos:
 #    print(info)
 
 
@@ -206,7 +256,7 @@ for info in token_infos:
         drop_unfreq_readings=True,
         strict_lookup=True,
     )
-#for info in token_infos:
+# for info in token_infos:
 #    print(info)
 
 
@@ -218,7 +268,7 @@ for info in token_infos:
     info.parsed_dict_entries = [
         jp_jamdict.parse_dict_entry(entry=entry) for entry in info.dict_entries
     ]
-    #print(info)
+    # print(info)
 
 
 # ============
@@ -245,7 +295,7 @@ if REORDER_VOCAB_COUNT:
     vocab_cards = [vocab_cards[idx] for idx in sort_index]
 
 
-#for card in vocab_cards:
+# for card in vocab_cards:
 #    print("\n")
 #    print(card)
 #    print(card.examples_str)

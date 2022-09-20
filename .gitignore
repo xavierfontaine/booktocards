@@ -5,6 +5,7 @@
 *.cache/
 */.pytest_cache/*
 
+conf/secrets.yaml
 data/in/*
 !data/in/.gitkeep
 data/out/*

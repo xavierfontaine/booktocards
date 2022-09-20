@@ -16,6 +16,10 @@ jamdict-data = "^1.5"
 spacy = "^3.2.2"
 pandas = "^1.4.1"
 SudachiDict-full = "^20211220"
+PyYAML = "^6.0"
+deepl = "^1.10.0"
+tatoebatools = "^0.2.1"
+ankipandas = "^0.3.10"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1.0"

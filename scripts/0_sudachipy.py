@@ -85,7 +85,7 @@ INPUT_FILEPATH = "scp_test.txt"
 # Path to output
 OUTPUT_FOLDER = os.path.join(io.get_data_path(), "out")
 # Tokenizer to use
-EXCLUDED_POS_SUDACHY = [
+EXCLUDED_POS_SUDACHI = [
     # Based on https://github.com/explosion/spaCy/blob/e6f91b6f276e90c32253d21ada29cc20108d1170/spacy/lang/ja/tag_orth_map.py
     # ADP
     ["助詞", "格助詞"],
@@ -159,16 +159,16 @@ sents = jp_spacy.sentencize(
 )
 # For each sentence, tokenize
 tokenizer = jp_sudachi.Tokenizer(split_mode=SPLIT_MODE, dict_name="full")
-sents_spacytok = [tokenizer.tokenize(doc=sent) for sent in sents]
+tokenized_sents = [tokenizer.tokenize(doc=sent) for sent in sents]
 _ = [
     tokenizer.filter_on_pos(
-        dictform_pos_doc=sent_spacytok,
-        excluded_pos=EXCLUDED_POS_SUDACHY,
+        dictform_pos_doc=sent,
+        excluded_pos=EXCLUDED_POS_SUDACHI,
     )
-    for sent_spacytok in sents_spacytok
+    for sent in tokenized_sents
 ]
 # Keep only lemmas
-sents_lemmas = [[lemma for lemma, _ in sent] for sent in sents_spacytok]
+sents_lemmas = [[lemma for lemma, _ in sent] for sent in tokenized_sents]
 # Table
 sents_df = pd.DataFrame({"sent": sents, "lemmas": sents_lemmas})
 

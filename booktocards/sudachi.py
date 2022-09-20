@@ -1,7 +1,45 @@
+from typing import Optional
 import sudachipy as sp
 from typing import List, Tuple
 from booktocards.annotations import DictForm, Pos, SubPos
 
+
+# =========
+# Constants
+# =========
+# Default constants
+# Tokenizer to use
+EXCLUDED_POS_SUDACHI = [
+    # Based on https://github.com/explosion/spaCy/blob/e6f91b6f276e90c32253d21ada29cc20108d1170/spacy/lang/ja/tag_orth_map.py
+    # ADP
+    ["助詞", "格助詞"],
+    ["助詞", "係助詞"],
+    ["助詞", "副助詞"],
+    # AUX
+    ["形状詞", "助動詞語幹"],
+    ["助動詞"],
+    ["接尾辞", "形容詞的"],
+    ["動詞", "非自立可能"],
+    ["名詞", "助動詞語幹"],
+    # DET
+    ["連体詞"],
+    # NUM
+    ["名詞", "数詞"],
+    # PART
+    ["助詞", "終助詞"],
+    ["接尾辞", "形状詞的"],
+    ["接尾辞", "動詞的"],
+    # PUNCT & SYM (except some emoji)
+    ["補助記号"],
+    ["絵文字・記号等"],
+    # SCONJ
+    ["助詞", "準体助詞"],
+    ["助詞", "接続助詞"],
+    # SPACE
+    ["空白"],
+]
+SPLIT_MODE = "C"
+DICT_NAME = "full"
 
 # =========
 # Functions
@@ -16,8 +54,8 @@ class Tokenizer:
 
     def __init__(
         self,
-        split_mode: str,
-        dict_name="full",
+        split_mode: str = SPLIT_MODE,
+        dict_name: str = DICT_NAME,
     ) -> None:
         self.split_mode = getattr(sp.SplitMode, split_mode)
         self.tokenizer = sp.Dictionary(dict=dict_name).create()
@@ -34,7 +72,7 @@ class Tokenizer:
             dict_name: "small", "core" or "full"
 
         Returns:
-            List[Tuple[DictForm, List[Pos]]]:
+            List[Tuple[DictForm, List[SubPos]]]:
         """
         morphemes = self.tokenizer.tokenize(text=doc, mode=self.split_mode)
         dictform_pos_doc = [
@@ -45,7 +83,7 @@ class Tokenizer:
     def filter_on_pos(
         self,
         dictform_pos_doc: List[Tuple[DictForm, List[SubPos]]],
-        excluded_pos: List[List[SubPos]] = [],
+        excluded_pos: list[list[SubPos]] = EXCLUDED_POS_SUDACHI,
     ):
         """Remove in-place entries that have pos matching excluded_pos
 
@@ -70,6 +108,7 @@ class Tokenizer:
                     lemma_pos=lemma_pos, pos_conditions=exc_pos
                 ):
                     dictform_pos_doc.pop(lemma_idx)
+        return dictform_pos_doc
 
     @staticmethod
     def _check_match_all_criteria(

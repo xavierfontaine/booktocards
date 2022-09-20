@@ -23,13 +23,14 @@ SLACK_FOLDER = os.path.join(
 # ===========
 # Annotations
 # ===========
-SlackEntry = Annotated[dict,
+SlackEntry = Annotated[
+    dict,
     """
     One entry of a channel-day level file. This is a message. It can be a
     normal message, an edit of a previous message, a change in channel topic,
     etc.
     See https://slack.com/help/articles/220556107-How-to-read-Slack-data-exports
-    """
+    """,
 ]
 
 
@@ -42,8 +43,6 @@ class MessageInfo:
     original_msg: str
     cleaned_msg: Optional[str] = None
     channel_name: Optional[str] = None
-
-
 
 
 # =========
@@ -69,9 +68,7 @@ def extract_text_info(slack_message: dict) -> MessageInfo:
                         if "text" in e:
                             cleaned_msg += e["text"]
     message_info = MessageInfo(
-        user_id=user_id,
-        original_msg=message,
-        cleaned_msg=cleaned_msg
+        user_id=user_id, original_msg=message, cleaned_msg=cleaned_msg
     )
     return message_info
 
@@ -84,10 +81,15 @@ with open(json_filepath, "r") as f:
     slack_entries: list[SlackEntry] = json.load(f)
 
 # Keep only messages without subtypes
-slack_entries = [c for c in slack_entries if (
-    c["type"] == "message"  # keeping only messages
-    and "subtype" not in c  # exlucing deleted msgs, changed versions of messages, bot msgs, etc., see "message subtypes" in https://slack.com/help/articles/220556107-How-to-read-Slack-data-exports#export-file-contents
-)]
+slack_entries = [
+    c
+    for c in slack_entries
+    if (
+        c["type"] == "message"  # keeping only messages
+        and "subtype"
+        not in c  # exlucing deleted msgs, changed versions of messages, bot msgs, etc., see "message subtypes" in https://slack.com/help/articles/220556107-How-to-read-Slack-data-exports#export-file-contents
+    )
+]
 # Keep message if plain text, else keep only elements of rich_text_section
 msg_infos = [extract_text_info(c) for c in slack_entries]
 

@@ -74,6 +74,13 @@ def sentencize(
     # Get sentencizer
     nlp = spacy.load(
         name=spacy_model,
+        exclude=[
+            "tok2vec",
+            "morphologizer",
+            "parser",
+            "attribute_ruler",
+            "ner",
+        ],
     )
     nlp.add_pipe("sentencizer")
     # Get chunks based on line breaks

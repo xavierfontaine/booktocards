@@ -6,7 +6,14 @@
 */.pytest_cache/*
 
 conf/secrets.yaml
-data/in/*
-!data/in/.gitkeep
-data/out/*
-!data/out/.gitkeep
+data/in/sources/*
+!data/in/sources/.gitkeep
+data/in/dictionaries/*
+!data/in/dictionaries/.gitkeep
+data/out/tatoeba_tanaka_corpus/*
+!data/out/tatoeba_tanaka_corpus/.gitkeep
+data/out/*.csv
+data/out/dictionaries/*
+!data/out/dictionaries/.gitkeep
+data/out/kb/*
+!data/out/kb/.gitkeep

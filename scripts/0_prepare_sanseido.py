@@ -10,7 +10,7 @@ from booktocards import jj_dicts, io
 # =========
 # Name of folders from data/in/dictionaries
 SANSEIDO_IN_FOLDER_NAME = "三省堂　スーパー大辞林"
-SANSEIDO_OUT_FOLDER_NAME = "dictionnaries"
+SANSEIDO_OUT_FOLDER_NAME = "dictionaries"
 SANSEIDO_OUT_FILENAME = "sanseido_dict.pickle"
 
 

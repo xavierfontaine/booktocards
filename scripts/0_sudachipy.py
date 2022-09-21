@@ -9,11 +9,11 @@ from datetime import datetime
 from jamdict import Jamdict, jmdict
 
 from booktocards import sudachi as jp_sudachi
-from booktocards import spacy as jp_spacy
-from booktocards import jamdict as jp_jamdict
-from booktocards import dataclasses as jp_dataclasses
+from booktocards import spacy_utils as jp_spacy
+from booktocards import jamdict_utils as jp_jamdict
+from booktocards import datacl as jp_dataclasses
 from booktocards import iterables, io
-from booktocards.dataclasses import TokenInfo
+from booktocards.datacl import TokenInfo
 
 # TODO:
 # Tokenization: replace spacy with sudachi to use the full dict (otherwise,

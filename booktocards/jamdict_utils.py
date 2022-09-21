@@ -1,7 +1,7 @@
 import copy
 from jamdict import Jamdict, jmdict
 from typing import List
-from booktocards.dataclasses import ParsedDictEntry
+from booktocards.datacl import ParsedDictEntry
 
 from booktocards.annotations import Kanji
 

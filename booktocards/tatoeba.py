@@ -64,10 +64,10 @@ class ManipulateTatoeba:
             logger.info(
                 "-- No prepared corpus found. Making corpus and index."
             )
-            self.make_corpus_and_index()
+            self._make_corpus_and_index()
             self._save()
 
-    def make_corpus_and_index(
+    def _make_corpus_and_index(
         self,
     ):
         # TODO: docstr
@@ -135,7 +135,7 @@ class ManipulateTatoeba:
         # TODO: docstr
         if len(self.tanaka_par_corpus) == 0 or len(self.inverted_index) == 0:
             raise ValueError(
-                "Generate the corpus with `self.make_corpus_and_index` first"
+                "Generate the corpus with `self._make_corpus_and_index` first"
             )
         # Serialize the tanaka corpus
         serialized_takana = {

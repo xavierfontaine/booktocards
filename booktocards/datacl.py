@@ -1,8 +1,16 @@
 from dataclasses import dataclass
 from typing import List, Optional, Dict
 from jamdict import jmdict
+import copy
 
-from booktocards.annotations import Pos, Count, SentenceId, Sentence
+from booktocards.annotations import (
+    Pos,
+    Count,
+    SentenceId,
+    Sentence,
+    Reading,
+    Definition,
+)
 
 
 @dataclass
@@ -23,11 +31,18 @@ class TokenInfo:
     count: Optional[int] = None
     dict_entries: Optional[List[jmdict.JMDEntry]] = None
     parsed_dict_entries: Optional[List[ParsedDictEntry]] = None
-    sent_ids: Optional[List[SentenceId]] = None
+    sanseido_dict_entries: Optional[dict[Reading, list[Definition]]] = None
+    source_sent_ids: Optional[List[SentenceId]] = None
+    source_ex_str: Optional[List[Sentence]] = None
+    source_ex_str_transl: Optional[List[Sentence]] = None
+    tatoeba_ex_str: Optional[List[Sentence]] = None
+    tatoeba_ex_str_transl: Optional[List[Sentence]] = None
 
 
 @dataclass
 class VocabCard:
+    """VocabCard."""
+
     entry_id: int
     lemma: str
     count: Optional[int] = None
@@ -35,25 +50,23 @@ class VocabCard:
     kanji_forms_str: Optional[str] = None
     is_frequent: Optional[bool] = None
     meanings_str: Optional[str] = None
+    sanseido_def_str: Optional[str] = None
     examples_str: Optional[str] = None
 
 
 def token_info_to_voc_cards(
-    token_info: TokenInfo, sentences: Dict[SentenceId, Sentence]
+    token_info: TokenInfo,
+    source_name: Optional[str] = None
 ) -> List[VocabCard]:
     """One dict per entry in token_info
 
     Args:
         token_info (TokenInfo)
-        sentences (Dict[SentenceId, Sentence]): all sentences, ids
-            corresponding to those used in TokenInfo.sent_ids
 
     Returns:
         List[VocabCard]
     """
     cards = list()
-    # Transform example ids to example list
-    token_sents = [sentences[sent_id] for sent_id in token_info.sent_ids]
     # Create each card
     for entry in token_info.parsed_dict_entries:
         card = VocabCard(entry_id=entry.entry_id, lemma=token_info.lemma)
@@ -66,10 +79,41 @@ def token_info_to_voc_cards(
             if len(entry.meanings) > 1
             else entry.meanings[0]
         )
-        card.examples_str = (
-            "# " + "\n# ".join(token_sents)
-            if len(token_sents) > 1
-            else token_sents[0]
-        )
+        # Add source examples (w translation when available)
+        card.examples_str = ""
+        if token_info.source_ex_str not in [None, []]:
+            source_ex_w_transl = copy.deepcopy(token_info.source_ex_str)
+            if source_name is not None:
+                source_ex_w_transl = [f"[{source_name}] " + ex for ex in source_ex_w_transl]
+            if token_info.source_ex_str_transl not in [None, []]:
+                for i, transl in enumerate(token_info.source_ex_str_transl):
+                    source_ex_w_transl[i] += f" ({transl})"
+            card.examples_str += (
+                "# " + "\n# ".join(source_ex_w_transl)
+            )
+        # Add tatoeba examples
+        if token_info.tatoeba_ex_str not in [None, []]:
+            if card.examples_str != "":
+                card.examples_str += "\n"
+            tatoeba_ex_w_transl = [
+                f"[tatoeba] {jpn} ({eng})"
+                for jpn, eng in zip(
+                    token_info.tatoeba_ex_str,
+                    token_info.tatoeba_ex_str_transl
+                )
+            ]
+            card.examples_str += (
+                "# " + "\n# ".join(tatoeba_ex_w_transl)
+            )
+        # Add jj definition
+        if token_info.sanseido_dict_entries not in [None, []]:
+            per_reading_def = [
+                f"Reading {i}) {reading}\n- [def] " +  "[def] ".join(defs)
+                for i, (reading, defs) in enumerate(token_info.sanseido_dict_entries.items())
+            ]
+            card.sanseido_def_str = "\n".join(per_reading_def)
+        else:
+            card.sanseido_def_str = ""
+        # Append current card ot set of output cards
         cards.append(card)
     return cards

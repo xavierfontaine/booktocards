@@ -3,11 +3,17 @@ from typing import Literal, Optional
 import os
 import pandas as pd
 import logging
+import deepl
+
 
 from booktocards import io
 from booktocards import parser
 from booktocards.text import get_unique_kanjis
 from booktocards.annotations import ColName, Values
+from booktocards import jamdict_utils
+from booktocards.datacl import TokenInfo, VocabCard, token_info_to_voc_cards
+from booktocards.tatoeba import ManipulateTatoeba
+from booktocards.jj_dicts import ManipulateSanseido
 
 
 # ======
@@ -362,30 +368,100 @@ class KnowledgeBase:
             logger.info(f"-- Dropped {doc_name=} from {table_name}")
         self._save_kb()
 
+    def make_voc_cards(
+        self,
+        token: str,
+        source_name: str,
+        translate_source_ex: bool,
+        max_source_examples: int,
+        max_tatoeba_examples: int,
+        sanseido_manipulator: ManipulateSanseido,
+        tatoeba_db: ManipulateTatoeba,
+        deepl_translator: deepl.Translator,
+    ) -> VocabCard:
+        # TODO: docstr
+        # Get the associated entry
+        token_df = self.__dict__[TOKEN_TABLE_NAME]
+        is_entry = (token_df[TOKEN_COLNAME] == token) & (
+            token_df[SOURCE_NAME_COLNAME] == source_name
+        )
+        # Sanity
+        if sum(is_entry) == 0:
+            raise ValueError(
+                f"{token=} cannot be found in {TOKEN_TABLE_NAME}[{TOKEN_COLNAME}]"
+            )
+        elif sum(is_entry) > 1:
+            raise ValueError(
+                f"More than one {token=} found in {TOKEN_TABLE_NAME}[{TOKEN_COLNAME}]"
+            )
+        # Make TokenInfo object (used as input in important methods)
+        entry = self.__dict__[TOKEN_TABLE_NAME][is_entry].iloc[0]
+        token_info = TokenInfo(
+            lemma=entry[TOKEN_COLNAME],
+            count=entry[COUNT_COLNAME],
+            source_sent_ids=entry[SEQS_IDS_COLNAME],
+        )
+        # Get the dictionary entries
+        token_info.dict_entries = jamdict_utils.get_dict_entries(
+            query=token_info.lemma,
+            drop_unfreq_entries=True,
+            drop_unfreq_readings=True,
+            strict_lookup=True,
+        )
+        # Parse the dict entries
+        token_info.parsed_dict_entries = [
+            jamdict_utils.parse_dict_entry(entry=entry)
+            for entry in token_info.dict_entries
+        ]
+        # Add jj dict entry
+        if token in sanseido_manipulator.sanseido_dict:
+            token_info.sanseido_dict_entries = (
+                sanseido_manipulator.sanseido_dict[token]
+            )
+        # Get examples
+        sent_ids = token_info.source_sent_ids[
+            :min(len(token_info.source_sent_ids), max_source_examples)
+        ]
+        source_ex_df = self.__dict__[SEQ_TABLE_NAME]
+        token_info.source_ex_str = [
+            source_ex_df.loc[
+                (source_ex_df[SOURCE_NAME_COLNAME] == source_name)
+                & (source_ex_df[SEQ_ID_COLNAME] == sent_id),
+                SEQ_COLNAME
+            ].iloc[0]
+            for sent_id in sent_ids
+        ]
+        # Add tatoeba examples + translations
+        if token in tatoeba_db.inverted_index:
+            tatoeba_ex_idx = tatoeba_db.inverted_index[token]
+            tatoeba_ex_idx = tatoeba_ex_idx[
+                :min(len(tatoeba_ex_idx), max_tatoeba_examples)
+            ]
+            tanaka_examples = [
+                tatoeba_db.tanaka_par_corpus[sent_id]
+                for sent_id in tatoeba_ex_idx
+            ]
+            token_info.tatoeba_ex_str = [
+                ex.sent_jpn
+                for ex in tanaka_examples
+            ]
+            token_info.tatoeba_ex_str_transl = [
+                ex.sent_eng
+                for ex in tanaka_examples
+            ]
+        # Add translation
+        if translate_source_ex:
+            token_info.source_ex_str_transl = [
+                deepl_translator.translate_text(
+                    text=seq, source_lang="JA", target_lang="EN-US"
+                ).text
+                for seq in token_info.source_ex_str
+            ]
+        # Make card
+        cards = token_info_to_voc_cards(
+            token_info=token_info,
+            source_name=source_name
+        )
+        # Return
+        return(cards)
 
-# exit()
-## TODO remove
-# logging.basicConfig(
-#    format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
-#    level=logging.DEBUG,
-# )
-# logger = logging.getLogger(__name__)
-# doc = """
-# 名前……ミサキって、知ってるか。三年三組のミサキ。それにまつわる話。
-#
-# 　ミサキ……人の名前？
-#
-# 　ああ。どんな字を書くのかは不明。苗みよう字じかもしれないから、女とは限らない。何々ミサキだかミサキ何々だか、そういう名前の生徒がいたんだってさ、今から二十六年前に。
-#
-# 　二十六年……大昔ね。昭和の時代ねぇ。
-#
-# 　一九七二年。昭和でいうと四十七年。沖縄返還の年、だったかな。
-#
-# 　沖縄って返ってきたの？　どこから？
-#
-# 　アホか、おまえ。戦後はそれまでずっとアメリカに占領されてたの。
-#
-# 　あ、だから今でも基地があるのねぇ。名前たべる"""
-# kb = KnowledgeBase()
-# kb.add_doc(doc=doc, doc_name="test")
-# kb.remove_doc(doc_name="test")

@@ -59,7 +59,7 @@ class ManipulateSanseido:
     while pickle will be the fastest.
 
     Attributes:
-        sanseido_dict (ict[DictForm, dict[Reading, list[Definition]]])
+        sanseido_dict (dict[DictForm, dict[Reading, list[Definition]]])
 
     Notes:
         - Picke might prove to be a faster (de)serialization method

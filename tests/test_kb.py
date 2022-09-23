@@ -45,9 +45,11 @@ def test_files_are_created_and_reloaded(monkeypatch, tmp_path):
     assert "吐く" in kb.__dict__[TOKEN_TABLE_NAME][TOKEN_COLNAME].to_list()
     assert kb.__dict__[KANJI_TABLE_NAME].shape[0] == 2
     assert "食" in kb.__dict__[KANJI_TABLE_NAME][KANJI_COLNAME].to_list()
-    assert set(kb.__dict__[KANJI_TABLE_NAME][
-        ASSOCIATED_TOKS_FROM_SOURCE_COLNAME
-    ].to_list()) == set([["食べる"], ["吐く"]])
+    assert set(
+        kb.__dict__[KANJI_TABLE_NAME][
+            ASSOCIATED_TOKS_FROM_SOURCE_COLNAME
+        ].to_list()
+    ) == set([["食べる"], ["吐く"]])
     assert kb.__dict__[SEQ_TABLE_NAME].shape[0] == 1
     # Reload and check everything is still here
     kb = booktocards.kb.KnowledgeBase()

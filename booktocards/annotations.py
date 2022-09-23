@@ -1,5 +1,6 @@
-from typing import Annotated
+from typing import Annotated, Any
 
+ColName = Annotated[str, "Column name"]
 Count = Annotated[int, "Count"]
 Definition = Annotated[str, "Definition"]
 DictForm = Annotated[str, "Dictionary form of the morpheme"]
@@ -11,3 +12,4 @@ Sentence = Annotated[str, "Sentence"]
 SentenceId = Annotated[int, "Sentence id"]
 SubPos = Annotated[str, "Sub-compoment of a Sudachi POS"]
 Token = Annotated[str, "Token"]
+Values = Annotated[list[Any], "Values"]

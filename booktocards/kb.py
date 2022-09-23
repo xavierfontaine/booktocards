@@ -1,21 +1,13 @@
-from typing import Literal
-import tqdm
-import pathlib
+import copy
+from typing import Literal, Optional
 import os
 import pandas as pd
 import logging
-from functools import reduce
-from datetime import datetime
-from jamdict import Jamdict, jmdict
 
-from booktocards import sudachi as jp_sudachi
-from booktocards import spacy_utils as jp_spacy
-from booktocards import jamdict_utils as jp_jamdict
-from booktocards import datacl as jp_dataclasses
-from booktocards import iterables, io
+from booktocards import io
 from booktocards import parser
-from booktocards.datacl import TokenInfo
-from booktocards.annotations import Token, Count, SentenceId
+from booktocards.text import get_unique_kanjis
+from booktocards.annotations import ColName, Values
 
 
 # ======
@@ -27,59 +19,79 @@ logger = logging.getLogger(__name__)
 # =========
 # Constants
 # =========
-_KB_OUT_DIRPATH = "kb"
+_KB_OUT_DIRNAME = "kb"
 _OUT_JSON_EXTENSIONS = ".json"
 # Data model for df in KnowledgeBase
-_DATA_MODEL = {  # table name: [column names]
-    "extracted_voc": [
-        "token",
-        "count",
-        "seq_ids",
-        "source_name",
-        "is_added_to_anki",
+TOKEN_TABLE_NAME = "tokens_df"
+KANJI_TABLE_NAME = "kanjis_df"
+SEQ_TABLE_NAME = "seqs_df"
+TOKEN_COLNAME = "token"
+KANJI_COLNAME = "kanji"
+SEQ_COLNAME = "seq"
+CARD_TABLE_NAME = "card"
+COUNT_COLNAME = "count"
+SEQ_ID_COLNAME = "seq_id"
+SEQS_IDS_COLNAME = "seqs_ids"
+SOURCE_NAME_COLNAME = "source_name"
+IS_KNOWN_COLNAME = "is_known"
+IS_ADDED_TO_ANKI_COLNAME = "is_added_to_anki"
+IS_SUPSENDED_FOR_SOURCE_COLNAME = "is_suspended_for_source"
+ASSOCIATED_TOKS_FROM_SOURCE_COLNAME = "associated_toks_from_source"
+DATA_MODEL = {  # table name: [column names]
+    TOKEN_TABLE_NAME: [
+        TOKEN_COLNAME,
+        COUNT_COLNAME,
+        SEQS_IDS_COLNAME,
+        SOURCE_NAME_COLNAME,
+        IS_KNOWN_COLNAME,
+        IS_ADDED_TO_ANKI_COLNAME,
+        IS_SUPSENDED_FOR_SOURCE_COLNAME,
     ],
-    "extracted_seqs": [
-        "sequence_id",
-        "sequence",
-        "tokens",
-        "source_name",
+    KANJI_TABLE_NAME: [
+        KANJI_COLNAME,
+        ASSOCIATED_TOKS_FROM_SOURCE_COLNAME,
+        IS_KNOWN_COLNAME,
+        IS_ADDED_TO_ANKI_COLNAME,
+        IS_SUPSENDED_FOR_SOURCE_COLNAME,
+        SOURCE_NAME_COLNAME,
     ],
-    "known_voc": ["token", "is_known"],
-    "known_kanji": ["kanji", "is_known"],
-    "suspended_voc": ["token", "is_suspended_for_source", "source"],
-    "suspended_kanji": ["kanji", "is_suspended_for_source", "source"],
+    SEQ_TABLE_NAME: [
+        SEQ_COLNAME,
+        SEQ_ID_COLNAME,
+        ASSOCIATED_TOKS_FROM_SOURCE_COLNAME,
+        SOURCE_NAME_COLNAME,
+    ],
 }
 
 
 # ====
 # Core
 # ====
+# Custom exception
 class NoKBError(Exception):
     """Raise when file cannot be found"""
 
     pass
 
 
+# Path to kb
+_kb_dirpath = os.path.join(
+    io.get_data_path(),
+    "out",
+    _KB_OUT_DIRNAME,
+)
+
+# KB class
 class KnowledgeBase:
     """Knowledge base for vocabulary and kanji
 
-    All data are stored in self following the table and column names in
-    `_DATA_MODEL`.
+    All data are stored in self, with one table perf key in `_DATA_MODEL`,
+    which follows the associated column names.
     """
 
     def __init__(self):
-        # Path to kb
-        self._kb_dirpath = os.path.join(
-            io.get_data_path(),
-            "out",
-            _KB_OUT_DIRPATH,
-        )
         # Try load all data, and if impossible, initialize
-        self.extracted_voc: pd.DataFrame
-        self.extracted_seqs: pd.DataFrame
-        self.known_voc: pd.DataFrame
-        self.known_kanji: pd.DataFrame
-        for df_name in _DATA_MODEL.keys():
+        for df_name in DATA_MODEL.keys():
             try:
                 self._load_df(df_name=df_name)
             except NoKBError:
@@ -87,14 +99,14 @@ class KnowledgeBase:
                     f"-- {df_name=} did not exist in kb. Initilazing it."
                 )
                 self.__dict__[df_name] = pd.DataFrame(
-                    columns=_DATA_MODEL[df_name]
+                    columns=DATA_MODEL[df_name]
                 )
                 self._save_df(df_name=df_name)
 
     def _load_df(self, df_name: str) -> None:
         """Read pd.DataFrame and attach it to self"""
         filepath = os.path.join(
-            self._kb_dirpath,
+            _kb_dirpath,
             df_name + _OUT_JSON_EXTENSIONS,
         )
         if not os.path.isfile(filepath):
@@ -107,7 +119,7 @@ class KnowledgeBase:
     def _save_df(self, df_name: str) -> None:
         """Write pd.DataFrame from self to json"""
         filepath = os.path.join(
-            self._kb_dirpath,
+            _kb_dirpath,
             df_name + _OUT_JSON_EXTENSIONS,
         )
         with open(filepath, "w") as f:
@@ -117,7 +129,7 @@ class KnowledgeBase:
 
     def _save_kb(self) -> None:
         # TODO: docstr
-        for df_name in _DATA_MODEL.keys():
+        for df_name in DATA_MODEL.keys():
             self._save_df(df_name=df_name)
 
     def add_doc(self, doc: str, doc_name: str) -> None:
@@ -125,8 +137,12 @@ class KnowledgeBase:
 
         `doc_name` is not path-related, and rather used as reference in the kb."""
         if (
-            doc_name in self.extracted_voc["source_name"].values
-            or doc_name in self.extracted_seqs["source_name"].values
+            doc_name
+            in self.__dict__[TOKEN_TABLE_NAME][SOURCE_NAME_COLNAME].values
+            or doc_name
+            in self.__dict__[KANJI_TABLE_NAME][SOURCE_NAME_COLNAME].values
+            or doc_name
+            in self.__dict__[SEQ_TABLE_NAME][SOURCE_NAME_COLNAME].values
         ):
             raise ValueError(
                 f"Trying to add {doc_name=} to the kb, but already exists. Use"
@@ -137,52 +153,239 @@ class KnowledgeBase:
         parsed_doc = parser.ParseDocument(doc=doc)
         token_count_sentid = parsed_doc.tokens
         sentid_sent_toks = parsed_doc.sentences
+        # Get kanjis
+        unique_kanjis = get_unique_kanjis(doc)
+        # Get associated tokens
+        uniq_kanjis_w_toks = {
+            kanji: [tok for tok in token_count_sentid.keys() if kanji in tok]
+            for kanji in unique_kanjis
+        }
         # To self - extracted voc
-        self.extracted_voc = pd.concat(
-            [
-                self.extracted_voc,
-                pd.DataFrame(
-                    {
-                        "token": token_count_sentid.keys(),
-                        "count": [v[0] for v in token_count_sentid.values()],
-                        "seq_ids": [v[1] for v in token_count_sentid.values()],
-                        "source_name": [
-                            doc_name for i in range(len(token_count_sentid))
-                        ],
-                        "is_added_to_anki": [
-                            False for i in range(len(token_count_sentid))
-                        ],
-                    }
-                ),
-            ]
+        self._add_items(
+            entry_to_add={
+                TOKEN_COLNAME: list(token_count_sentid.keys()),
+                COUNT_COLNAME: [v[0] for v in token_count_sentid.values()],
+                SEQS_IDS_COLNAME: [v[1] for v in token_count_sentid.values()],
+                SOURCE_NAME_COLNAME: [
+                    doc_name for i in range(len(token_count_sentid))
+                ],
+                IS_ADDED_TO_ANKI_COLNAME: [
+                    False for i in range(len(token_count_sentid))
+                ],
+                IS_KNOWN_COLNAME: [
+                    False for i in range(len(token_count_sentid))
+                ],
+                IS_SUPSENDED_FOR_SOURCE_COLNAME: [
+                    False for i in range(len(token_count_sentid))
+                ],
+            },
+            table_name=TOKEN_TABLE_NAME,
+            item_colname=TOKEN_COLNAME,
         )
-        # To self - extracted seqs
-        self.extracted_seqs = pd.concat(
-            [
-                self.extracted_seqs,
-                pd.DataFrame(
-                    {
-                        "sequence_id": sentid_sent_toks.keys(),
-                        "sequence": [v[0] for v in sentid_sent_toks.values()],
-                        "tokens": [v[1] for v in sentid_sent_toks.values()],
-                        "source_name": [
-                            doc_name for i in range(len(sentid_sent_toks))
-                        ],
-                    }
+        # To self - kanjis
+        self._add_items(
+            entry_to_add={
+                KANJI_COLNAME: list(uniq_kanjis_w_toks.keys()),
+                ASSOCIATED_TOKS_FROM_SOURCE_COLNAME: list(
+                    uniq_kanjis_w_toks.values()
                 ),
-            ]
+                IS_KNOWN_COLNAME: [
+                    False for i in range(len(uniq_kanjis_w_toks))
+                ],
+                IS_ADDED_TO_ANKI_COLNAME: [
+                    False for i in range(len(uniq_kanjis_w_toks))
+                ],
+                IS_SUPSENDED_FOR_SOURCE_COLNAME: [
+                    False for i in range(len(uniq_kanjis_w_toks))
+                ],
+                SOURCE_NAME_COLNAME: [
+                    doc_name for i in range(len(uniq_kanjis_w_toks))
+                ],
+            },
+            table_name=KANJI_TABLE_NAME,
+            item_colname=KANJI_COLNAME,
+        )
+        # To self - extracted sequences
+        self._add_items(
+            entry_to_add={
+                SEQ_ID_COLNAME: list(sentid_sent_toks.keys()),
+                SEQ_COLNAME: [v[0] for v in sentid_sent_toks.values()],
+                ASSOCIATED_TOKS_FROM_SOURCE_COLNAME: [
+                    v[1] for v in sentid_sent_toks.values()
+                ],
+                SOURCE_NAME_COLNAME: [
+                    doc_name for i in range(len(sentid_sent_toks))
+                ],
+            },
+            table_name=SEQ_TABLE_NAME,
         )
         # Save in kb
         self._save_kb()
         logger.info(f"-- Added {doc_name=} to kb.")
 
+    def _add_items(
+        self,
+        entry_to_add: dict[ColName, Values],
+        table_name: Literal[TOKEN_TABLE_NAME, KANJI_TABLE_NAME, SEQ_COLNAME],
+        item_colname: Optional[ColName] = None,
+    ) -> None:
+        # TODO: docstr (item_colname is kanji for kanji, token for token,
+        # sequence for sequence, and is the one for which we make sure nothing
+        # as been added before)
+        items_to_add = copy.deepcopy(entry_to_add)
+        # Check keys
+        if set(items_to_add.keys()) != set(
+            self.__dict__[table_name].columns.to_list()
+        ):
+            raise KeyError(
+                f"Keys in `items_to_add` are {items_to_add.keys()}, but should be"
+                f" {DATA_MODEL[table_name]}"
+            )
+        # Check value length
+        columns = list(items_to_add.keys())
+        for col in columns[1:]:
+            if len(items_to_add[columns[0]]) != len(items_to_add[col]):
+                raise ValueError(
+                    f"Column {col} in data_dict doesn't have the same length"
+                    " as other columns."
+                )
+        # For an added row, if the value for the index exist and associated to
+        # a known value, then set know to True
+        if item_colname is not None:
+            for obs_i, index_value in enumerate(items_to_add[item_colname]):
+                table = self.__dict__[table_name]
+                value_exists_and_known = (
+                    table[item_colname] == index_value
+                ) & (table[IS_KNOWN_COLNAME] == True)
+                if any(value_exists_and_known):
+                    logger.debug(
+                        f"{index_value} exists in {table_name}[{item_colname}]"
+                        " and is marked as known. Mark it as"
+                        " know in the added items as well."
+                    )
+                    items_to_add[IS_KNOWN_COLNAME][obs_i] = True
+        # Add the values
+        self.__dict__[table_name] = pd.concat(
+            [
+                self.__dict__[table_name],
+                pd.DataFrame(items_to_add),
+            ]
+        )
+
+    def set_item_to_known(
+        self,
+        item_value: str,
+        item_colname: ColName,
+        table_name: Literal[
+            TOKEN_TABLE_NAME,
+            KANJI_TABLE_NAME,
+        ],
+    ) -> None:
+        # TODO: docstr
+        # Finf where item_colname is equal to item_value
+        is_item = self.__dict__[table_name][item_colname] == item_value
+        # Sanity
+        if not any(is_item):
+            raise ValueError(
+                f"{item_value=} cannot be found in {table_name}[{item_colname}]"
+            )
+        # Set to known in all sources
+        self.__dict__[table_name].loc[is_item, IS_KNOWN_COLNAME] = True
+        # Save
+        self._save_kb()
+
+    def set_item_to_added_to_anki(
+        self,
+        item_value: str,
+        source_name: str,
+        item_colname: ColName,
+        table_name: Literal[
+            TOKEN_TABLE_NAME,
+            KANJI_TABLE_NAME,
+        ],
+    ) -> None:
+        # TODO: docstr
+        # Finf where item_colname is equal to item_value
+        is_item = self.__dict__[table_name][item_colname] == item_value
+        is_source = (
+            self.__dict__[table_name][SOURCE_NAME_COLNAME] == source_name
+        )
+        # Sanity
+        if not any(is_item):
+            raise ValueError(
+                f"{item_value=} cannot be found in {table_name}[{item_colname}]"
+            )
+        # Set to known in all sources
+        self.__dict__[table_name].loc[
+            is_item & is_source, IS_ADDED_TO_ANKI_COLNAME
+        ] = True
+        # Save
+        self._save_kb()
+
+    def set_item_to_suspended_for_source(
+        self,
+        item_value: str,
+        source_name: str,
+        item_colname: ColName,
+        table_name: Literal[
+            TOKEN_TABLE_NAME,
+            KANJI_TABLE_NAME,
+        ],
+    ) -> None:
+        # TODO: docstr
+        # Finf where item_colname is equal to item_value
+        is_item = self.__dict__[table_name][item_colname] == item_value
+        is_source = (
+            self.__dict__[table_name][SOURCE_NAME_COLNAME] == source_name
+        )
+        # Sanity
+        if not any(is_item):
+            raise ValueError(
+                f"{item_value=} cannot be found in {table_name}[{item_colname}]"
+            )
+        # Set to known in all sources
+        self.__dict__[table_name].loc[
+            is_item & is_source, IS_SUPSENDED_FOR_SOURCE_COLNAME
+        ] = True
+        # Save
+        self._save_kb()
+
     def remove_doc(self, doc_name: str):
         """Remove doc from kb"""
-        # Remove frm extracted_seqs
-        rows_to_remove = self.extracted_seqs["source_name"] == doc_name
-        self.extracted_seqs = self.extracted_seqs[~rows_to_remove]
-        # Remove frm extracted_voc
-        rows_to_remove = self.extracted_voc["source_name"] == doc_name
-        self.extracted_voc = self.extracted_voc[~rows_to_remove]
-        logger.info(f"-- Dropped {doc_name=} from kb.")
+        for table_name in DATA_MODEL.keys():
+            rows_to_remove = (
+                self.__dict__[table_name][SOURCE_NAME_COLNAME] == doc_name
+            )
+            self.__dict__[table_name] = self.__dict__[table_name][
+                ~rows_to_remove
+            ]
+            logger.info(f"-- Dropped {doc_name=} from {table_name}")
         self._save_kb()
+
+
+# exit()
+## TODO remove
+# logging.basicConfig(
+#    format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
+#    level=logging.DEBUG,
+# )
+# logger = logging.getLogger(__name__)
+# doc = """
+# 名前……ミサキって、知ってるか。三年三組のミサキ。それにまつわる話。
+#
+# 　ミサキ……人の名前？
+#
+# 　ああ。どんな字を書くのかは不明。苗みよう字じかもしれないから、女とは限らない。何々ミサキだかミサキ何々だか、そういう名前の生徒がいたんだってさ、今から二十六年前に。
+#
+# 　二十六年……大昔ね。昭和の時代ねぇ。
+#
+# 　一九七二年。昭和でいうと四十七年。沖縄返還の年、だったかな。
+#
+# 　沖縄って返ってきたの？　どこから？
+#
+# 　アホか、おまえ。戦後はそれまでずっとアメリカに占領されてたの。
+#
+# 　あ、だから今でも基地があるのねぇ。名前たべる"""
+# kb = KnowledgeBase()
+# kb.add_doc(doc=doc, doc_name="test")
+# kb.remove_doc(doc_name="test")

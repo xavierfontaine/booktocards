@@ -11,7 +11,10 @@ from booktocards import parser
 from booktocards.text import get_unique_kanjis
 from booktocards.annotations import ColName, Values
 from booktocards import jamdict_utils
-from booktocards.datacl import TokenInfo, VocabCard, token_info_to_voc_cards
+from booktocards.datacl import (
+    TokenInfo, VocabCard, token_info_to_voc_cards,
+    KanjiCard, kanji_info_to_kanji_card
+)
 from booktocards.tatoeba import ManipulateTatoeba
 from booktocards.jj_dicts import ManipulateSanseido
 
@@ -420,14 +423,14 @@ class KnowledgeBase:
             )
         # Get examples
         sent_ids = token_info.source_sent_ids[
-            :min(len(token_info.source_sent_ids), max_source_examples)
+            : min(len(token_info.source_sent_ids), max_source_examples)
         ]
         source_ex_df = self.__dict__[SEQ_TABLE_NAME]
         token_info.source_ex_str = [
             source_ex_df.loc[
                 (source_ex_df[SOURCE_NAME_COLNAME] == source_name)
                 & (source_ex_df[SEQ_ID_COLNAME] == sent_id),
-                SEQ_COLNAME
+                SEQ_COLNAME,
             ].iloc[0]
             for sent_id in sent_ids
         ]
@@ -435,19 +438,15 @@ class KnowledgeBase:
         if token in tatoeba_db.inverted_index:
             tatoeba_ex_idx = tatoeba_db.inverted_index[token]
             tatoeba_ex_idx = tatoeba_ex_idx[
-                :min(len(tatoeba_ex_idx), max_tatoeba_examples)
+                : min(len(tatoeba_ex_idx), max_tatoeba_examples)
             ]
             tanaka_examples = [
                 tatoeba_db.tanaka_par_corpus[sent_id]
                 for sent_id in tatoeba_ex_idx
             ]
-            token_info.tatoeba_ex_str = [
-                ex.sent_jpn
-                for ex in tanaka_examples
-            ]
+            token_info.tatoeba_ex_str = [ex.sent_jpn for ex in tanaka_examples]
             token_info.tatoeba_ex_str_transl = [
-                ex.sent_eng
-                for ex in tanaka_examples
+                ex.sent_eng for ex in tanaka_examples
             ]
         # Add translation
         if translate_source_ex:
@@ -459,9 +458,38 @@ class KnowledgeBase:
             ]
         # Make card
         cards = token_info_to_voc_cards(
-            token_info=token_info,
-            source_name=source_name
+            token_info=token_info, source_name=source_name
         )
         # Return
-        return(cards)
+        return cards
 
+    def make_kanji_card(
+        self,
+        kanji: str,
+        source_name: str,
+    )->KanjiCard:
+        #TODO: docstr
+        # Get the associated entry
+        kanji_df = self.__dict__[KANJI_TABLE_NAME]
+        is_entry = (kanji_df[KANJI_COLNAME] == kanji) & (
+            kanji_df[SOURCE_NAME_COLNAME] == source_name
+        )
+        # Sanity
+        if sum(is_entry) == 0:
+            raise ValueError(
+                f"{kanji=} cannot be found in {KANJI_TABLE_NAME}[{KANJI_COLNAME}]"
+            )
+        elif sum(is_entry) > 1:
+            raise ValueError(
+                f"More than one {kanji=} found in"
+                f" {KANJI_TABLE_NAME}[{KANJI_COLNAME}]"
+            )
+        entry = self.__dict__[KANJI_TABLE_NAME][is_entry].iloc[0]
+        # Get KanjiInfo
+        kanji_info = jamdict_utils.get_kanji_info(kanji=kanji)
+        # Add source/tokens associated to the kanji
+        kanji_info.seen_in_source = source_name
+        kanji_info.seen_in_tokens = entry[ASSOCIATED_TOKS_FROM_SOURCE_COLNAME]
+        # Make into KanjiCard
+        kanji_card = kanji_info_to_kanji_card(kanji_info=kanji_info)
+        return kanji_card

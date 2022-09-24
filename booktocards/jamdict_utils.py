@@ -1,9 +1,10 @@
 import copy
 from jamdict import Jamdict, jmdict
 from typing import List
-from booktocards.datacl import ParsedDictEntry
+from booktocards.datacl import ParsedDictEntry, KanjiInfo
 
 from booktocards.annotations import Kanji
+from booktocards.text import get_unique_kanjis
 
 jam = Jamdict(memory_mode=True)
 
@@ -125,3 +126,62 @@ def parse_dict_entry(entry: jmdict.JMDEntry) -> ParsedDictEntry:
         ["pri" in kana.keys() for kana in dictified_entry["kana"]]
     ) or any(["pri" in kanji.keys() for kanji in dictified_entry["kanji"]])
     return parsed_dict_entry
+
+
+def get_kanji_info(kanji: str) -> KanjiInfo:
+    # TODO: docstr
+    # Sanity checks
+    if len(kanji) != 1:
+        raise ValueError(f"`kanji` should be of length 1, but is {kanji=}")
+    if len(get_unique_kanjis(kanji)) == 0:
+        raise ValueError(f"`kanji` should be a kanji but is {kanji=}")
+    # Get character entry
+    jmd_entries = jam.lookup(
+        query=kanji,
+        strict_lookup=True,
+    )
+    char_entries = jmd_entries.chars
+    assert len(char_entries) == 1, (
+        "Code assumed that LookupResults.chars is always of length 1, but is"
+        f" {char_entries}. Modify code appropriately."
+    )
+    char_entry = char_entries[0]
+    del char_entries
+    # Sanity
+    assert len(char_entry.to_dict()["rm"]) == 1, (
+        "Code assumed that len(LookupResults.chars[0].rm_groups) == 1 always, but"
+        f" is {char_entry.to_dict()['rm']}. Modify code appropriately."
+    )
+    # Parse character entry
+    readings_meanings = char_entry.to_dict()["rm"][0]
+    meanings = [
+        mean["value"]
+        for mean in readings_meanings["meanings"]
+        if mean["m_lang"] == ""
+    ]
+    onyomis = [
+        read["value"]
+        for read in readings_meanings["readings"]
+        if read["type"] == "ja_on"
+    ]
+    kunyomis = [
+        read["value"]
+        for read in readings_meanings["readings"]
+        if read["type"] == "ja_kun"
+    ]
+    nanoris = char_entry.to_dict()["nanoris"]
+    variants = char_entry.to_dict()["variants"]
+    freq = char_entry.to_dict()["freq"]
+    jlpt = char_entry.to_dict()["jlpt"]
+    # Put that into a KanjiInfo, and return it
+    kanji_info = KanjiInfo(
+        kanji=kanji,
+        meanings=meanings,
+        onyomis=onyomis,
+        kunyomis=kunyomis,
+        nanoris=nanoris,
+        freq=freq,
+        jlpt=jlpt,
+        variants=variants,
+    )
+    return kanji_info

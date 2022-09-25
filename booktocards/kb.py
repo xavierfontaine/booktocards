@@ -12,8 +12,11 @@ from booktocards.text import get_unique_kanjis
 from booktocards.annotations import ColName, Values
 from booktocards import jamdict_utils
 from booktocards.datacl import (
-    TokenInfo, VocabCard, token_info_to_voc_cards,
-    KanjiCard, kanji_info_to_kanji_card
+    TokenInfo,
+    VocabCard,
+    token_info_to_voc_cards,
+    KanjiCard,
+    kanji_info_to_kanji_card,
 )
 from booktocards.tatoeba import ManipulateTatoeba
 from booktocards.jj_dicts import ManipulateSanseido
@@ -94,23 +97,32 @@ _kb_dirpath = os.path.join(
 class KnowledgeBase:
     """Knowledge base for vocabulary and kanji
 
-    All data are stored in self, with one table perf key in `_DATA_MODEL`,
-    which follows the associated column names.
+    At runtime, data are stored in self. At instanciation, they are loaded from
+    json. At each operation, they are stored in json.
+
+    Attributes
+        One pd.DataFrame per key in `_DATA_MODEL`. The columns of dataframe p
+        are the values in `_DATA_MODEL`[p]
     """
 
     def __init__(self):
         # Try load all data, and if impossible, initialize
-        for df_name in DATA_MODEL.keys():
-            try:
-                self._load_df(df_name=df_name)
-            except NoKBError:
-                logger.info(
-                    f"-- {df_name=} did not exist in kb. Initilazing it."
-                )
+        try:
+            self._load_kb()
+        except NoKBError:
+            logger.info(f"-- No existing kb. Initilazing it.")
+            for df_name in DATA_MODEL.keys():
                 self.__dict__[df_name] = pd.DataFrame(
                     columns=DATA_MODEL[df_name]
                 )
-                self._save_df(df_name=df_name)
+            self._save_df(df_name=df_name)
+            logger.info(f"-- Initialized")
+
+    def __getitem__(self, arg) -> pd.DataFrame:
+        """Get tables through square brakets"""
+        if arg not in DATA_MODEL.keys():
+            raise KeyError(f"{arg} is not one of {DATA_MODEL.keys()}")
+        return self.__dict__[arg]
 
     def _load_df(self, df_name: str) -> None:
         """Read pd.DataFrame and attach it to self"""
@@ -136,8 +148,13 @@ class KnowledgeBase:
                 path_or_buf=f, orient="table", index=False
             )
 
+    def _load_kb(self) -> None:
+        """Load the kb frm jsons"""
+        for df_name in DATA_MODEL.keys():
+            self._load_df(df_name=df_name)
+
     def _save_kb(self) -> None:
-        # TODO: docstr
+        """Save the kb into several jsons (1 per table)"""
         for df_name in DATA_MODEL.keys():
             self._save_df(df_name=df_name)
 
@@ -238,9 +255,23 @@ class KnowledgeBase:
         table_name: Literal[TOKEN_TABLE_NAME, KANJI_TABLE_NAME, SEQ_COLNAME],
         item_colname: Optional[ColName] = None,
     ) -> None:
-        # TODO: docstr (item_colname is kanji for kanji, token for token,
-        # sequence for sequence, and is the one for which we make sure nothing
-        # as been added before)
+        """Add item to the table
+
+        Args:
+            entry_to_add (dict[ColName, Values]): row to add to the table
+            table_name (Literal[TOKEN_TABLE_NAME, KANJI_TABLE_NAME,
+                SEQ_COLNAME]): name of the table
+            item_colname (Optional[ColName]): if specified, will check that if
+                the new entry shares values of `item_colname` with another
+                entry, then it will take the value of IS_KNOWN_COLNAME from
+                that other entry. For instance, if we add a token frm a new
+                source, but that token already existed in the database and was
+                marked as known, then the new entry will also be
+                considered known.
+
+        Returns:
+            None
+        """
         items_to_add = copy.deepcopy(entry_to_add)
         # Check keys
         if set(items_to_add.keys()) != set(
@@ -290,7 +321,20 @@ class KnowledgeBase:
             KANJI_TABLE_NAME,
         ],
     ) -> None:
-        # TODO: docstr
+        """Set item to known
+
+        Args:
+            item_value (str): value of the item in column `item_colname`
+            item_colname (ColName): column on which we should look for
+                `item_value`
+            table_name (Literal[
+                    TOKEN_TABLE_NAME,
+                    KANJI_TABLE_NAME,
+                ]): name of the table
+
+        Returns:
+            None:
+        """
         # Finf where item_colname is equal to item_value
         is_item = self.__dict__[table_name][item_colname] == item_value
         # Sanity
@@ -300,6 +344,28 @@ class KnowledgeBase:
             )
         # Set to known in all sources
         self.__dict__[table_name].loc[is_item, IS_KNOWN_COLNAME] = True
+        # Save
+        self._save_kb()
+
+    def set_item_to_unknown(
+        self,
+        item_value: str,
+        item_colname: ColName,
+        table_name: Literal[
+            TOKEN_TABLE_NAME,
+            KANJI_TABLE_NAME,
+        ],
+    ) -> None:
+        """Inverse of `set_item_to_known`"""
+        # Find where item_colname is equal to item_value
+        is_item = self.__dict__[table_name][item_colname] == item_value
+        # Sanity
+        if not any(is_item):
+            raise ValueError(
+                f"{item_value=} cannot be found in {table_name}[{item_colname}]"
+            )
+        # Set to unknown in all sources
+        self.__dict__[table_name].loc[is_item, IS_KNOWN_COLNAME] = False
         # Save
         self._save_kb()
 
@@ -313,7 +379,21 @@ class KnowledgeBase:
             KANJI_TABLE_NAME,
         ],
     ) -> None:
-        # TODO: docstr
+        """Set item as added to Anki
+
+        Args:
+            item_value (str): value of the item we want to set as added
+            source_name (str): source of the item we want to set as added
+            item_colname (ColName): column in which we will look for
+                `item_value`
+            table_name (Literal[
+                    TOKEN_TABLE_NAME,
+                    KANJI_TABLE_NAME,
+                ]): name of the table
+
+        Returns:
+            None
+        """
         # Finf where item_colname is equal to item_value
         is_item = self.__dict__[table_name][item_colname] == item_value
         is_source = (
@@ -341,7 +421,21 @@ class KnowledgeBase:
             KANJI_TABLE_NAME,
         ],
     ) -> None:
-        # TODO: docstr
+        """Set item as suspended for a given source
+
+        Args:
+            item_value (str): value of the item we want to set as suspended
+            source_name (str): source of the item we want to set as suspended
+            item_colname (ColName): column in which we will look for
+                `item_value`
+            table_name (Literal[
+                    TOKEN_TABLE_NAME,
+                    KANJI_TABLE_NAME,
+                ]): name of the table
+
+        Returns:
+            None
+        """
         # Finf where item_colname is equal to item_value
         is_item = self.__dict__[table_name][item_colname] == item_value
         is_source = (
@@ -382,7 +476,25 @@ class KnowledgeBase:
         tatoeba_db: ManipulateTatoeba,
         deepl_translator: deepl.Translator,
     ) -> VocabCard:
-        # TODO: docstr
+        """Make vocabulary card for `token` in `source_name`
+
+        Args:
+            token (str): token
+            source_name (str): name of the source
+            translate_source_ex (bool): add translations for examples extracted
+                from source?
+            max_source_examples (int): maximum number of examples kept from a
+                source
+            max_tatoeba_examples (int): maximum number of examples kept from
+                tatoeba
+            sanseido_manipulator (ManipulateSanseido): ManipulateSanseido
+                object
+            tatoeba_db (ManipulateTatoeba): ManipulateTatoeba object
+            deepl_translator (deepl.Translator): deepl.Translator object
+
+        Returns:
+            VocabCard
+        """
         # Get the associated entry
         token_df = self.__dict__[TOKEN_TABLE_NAME]
         is_entry = (token_df[TOKEN_COLNAME] == token) & (
@@ -467,8 +579,16 @@ class KnowledgeBase:
         self,
         kanji: str,
         source_name: str,
-    )->KanjiCard:
-        #TODO: docstr
+    ) -> KanjiCard:
+        """Make a kanji card for `kanji` from `source_name`
+
+        Args:
+            kanji (str): kanji
+            source_name (str): name of the source
+
+        Returns:
+            KanjiCard
+        """
         # Get the associated entry
         kanji_df = self.__dict__[KANJI_TABLE_NAME]
         is_entry = (kanji_df[KANJI_COLNAME] == kanji) & (

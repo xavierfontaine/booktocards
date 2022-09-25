@@ -15,7 +15,11 @@ from booktocards.annotations import (
 
 @dataclass
 class ParsedDictEntry:
-    """Parsed jamdict.jmdict.JMDEntry"""
+    """Parsed jamdict.jmdict.JMDEntry
+
+    Contains the information from a JMDEntry that are most relevant to the
+    current project.
+    """
 
     entry_id: Optional[int] = None
     kana_forms: Optional[List[str]] = None
@@ -26,6 +30,8 @@ class ParsedDictEntry:
 
 @dataclass
 class TokenInfo:
+    """Information about a token"""
+
     lemma: str
     pos: Optional[str] = None
     count: Optional[int] = None
@@ -41,7 +47,11 @@ class TokenInfo:
 
 @dataclass
 class VocabCard:
-    """VocabCard."""
+    """Fields of a vocabulary flashcard
+
+    Each attribute is a str, an int or a None. Hence, a VocabCard can be
+    readily turned into the content of a flashcard.
+    """
 
     entry_id: int
     lemma: str
@@ -57,13 +67,13 @@ class VocabCard:
 def token_info_to_voc_cards(
     token_info: TokenInfo, source_name: Optional[str] = None
 ) -> List[VocabCard]:
-    """One dict per entry in token_info
+    """Transform a TokenInfo into a VocabCard
 
     Args:
         token_info (TokenInfo)
 
     Returns:
-        List[VocabCard]
+        List[VocabCard]: one dict per entry in token_info
     """
     cards = list()
     # Create each card
@@ -119,6 +129,8 @@ def token_info_to_voc_cards(
 
 @dataclass
 class KanjiInfo:
+    """Information about a kanji"""
+
     kanji: str
     meanings: list[str]
     onyomis: list[str] = field(default_factory=list)
@@ -133,6 +145,12 @@ class KanjiInfo:
 
 @dataclass
 class KanjiCard:
+    """Fields of a kanji flashcard
+
+    Each attribute is a str, an int or a None. Hence, a KanjiCard can be
+    readily turned into the content of a flashcard.
+    """
+
     kanji: str
     meanings_str: str
     onyomis_str: Optional[str] = None
@@ -146,7 +164,14 @@ class KanjiCard:
 
 
 def kanji_info_to_kanji_card(kanji_info: KanjiInfo) -> KanjiCard:
-    # TODO: docstr
+    """Transform a KanjiInfo into a KanjiCard
+
+    Args:
+        kanji_info (KanjiInfo)
+
+    Returns:
+        KanjiCard
+    """
     # Get card items
     kanji = kanji_info.kanji
     meanings_str = "# " + "\n# ".join(kanji_info.meanings)

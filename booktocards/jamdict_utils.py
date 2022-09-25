@@ -129,7 +129,14 @@ def parse_dict_entry(entry: jmdict.JMDEntry) -> ParsedDictEntry:
 
 
 def get_kanji_info(kanji: str) -> KanjiInfo:
-    # TODO: docstr
+    """Get inormation about a kanji from jamdict
+
+    Args:
+        kanji (str): kanji
+
+    Returns:
+        KanjiInfo
+    """
     # Sanity checks
     if len(kanji) != 1:
         raise ValueError(f"`kanji` should be of length 1, but is {kanji=}")

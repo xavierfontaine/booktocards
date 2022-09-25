@@ -54,7 +54,15 @@ class TanakaEntry:
 
 
 class ManipulateTatoeba:
-    # TODO: docstr
+    """ManipulateTatoeba.
+
+    Attributes
+        tanaka_par_corpus (dict[SentenceId, TanakaEntry]): list of sentence id
+            and Tanaka entries from tatoeba
+        inverted_index (dict[Token, list[SentenceId]]): for each token in
+            Tanaka, list the associated entries
+    """
+
     def __init__(self):
         self.tanaka_par_corpus: dict[SentenceId, TanakaEntry] = {}
         self.inverted_index: dict[Token, list[SentenceId]] = {}
@@ -70,15 +78,17 @@ class ManipulateTatoeba:
     def _make_corpus_and_index(
         self,
     ):
-        # TODO: docstr
+        """Extract and prepare Tanaka corpus + {token: sentence ids} index
+
+        The output is attached to self.tanaka_par_corpus and
+        self.inverted_index
+        """
         # Get parellel corpus
         par_corpus = ParallelCorpus(
             source_language_code="jpn",
             target_language_code="eng",
             update=False,
         )
-        # TODO: remove
-        par_corpus = list(par_corpus)[:5000]
         # Get sentence ids  for tanaka corpus
         tanaka_ents_ids = [
             sent.sentence_id
@@ -132,7 +142,7 @@ class ManipulateTatoeba:
         self.inverted_index = inverted_index
 
     def _save(self, folder_path: str = _tanaka_folder_path):
-        # TODO: docstr
+        """Save attributes to json"""
         if len(self.tanaka_par_corpus) == 0 or len(self.inverted_index) == 0:
             raise ValueError(
                 "Generate the corpus with `self._make_corpus_and_index` first"
@@ -156,7 +166,7 @@ class ManipulateTatoeba:
             logger.info(f"-- Saved {filename} in {filepath}")
 
     def _load(self, folder_path: str = _tanaka_folder_path):
-        # TODO: docstr
+        """Load attributes from json"""
         # Get tanaka and deserialize
         filepath = os.path.join(folder_path, _TANAKA_CORPUS_FILENAME)
         if not os.path.isfile(filepath):

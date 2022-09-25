@@ -70,7 +70,6 @@ def sentencize(
     Returns:
         List[Sentence]:
     """
-    # TODO: docstr
     # Get sentencizer
     nlp = spacy.load(
         name=spacy_model,

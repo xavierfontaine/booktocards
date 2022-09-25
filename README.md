@@ -1,4 +1,4 @@
-# JAPEN
+# BookToCards
 
 ## Installation
 1. At the root of the repo, `poetry install`

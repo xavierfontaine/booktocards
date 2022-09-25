@@ -8,7 +8,7 @@ import deepl
 
 from booktocards import io
 from booktocards import parser
-from booktocards.text import get_unique_kanjis
+from booktocards.text import get_unique_kanjis, is_only_ascii_alphanum
 from booktocards.annotations import ColName, Values
 from booktocards import jamdict_utils
 from booktocards.datacl import (
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 # Constants
 # =========
 _KB_OUT_DIRNAME = "kb"
-_OUT_JSON_EXTENSIONS = ".json"
+_OUT_PICKLE_EXTENSION = ".pickle"
 # Data model for df in KnowledgeBase
 TOKEN_TABLE_NAME = "tokens_df"
 KANJI_TABLE_NAME = "kanjis_df"
@@ -48,6 +48,7 @@ SOURCE_NAME_COLNAME = "source_name"
 IS_KNOWN_COLNAME = "is_known"
 IS_ADDED_TO_ANKI_COLNAME = "is_added_to_anki"
 IS_SUPSENDED_FOR_SOURCE_COLNAME = "is_suspended_for_source"
+TO_BE_STUDIED_FROM_DATE_COLNAME = "to_be_studied_from"
 ASSOCIATED_TOKS_FROM_SOURCE_COLNAME = "associated_toks_from_source"
 DATA_MODEL = {  # table name: [column names]
     TOKEN_TABLE_NAME: [
@@ -58,6 +59,7 @@ DATA_MODEL = {  # table name: [column names]
         IS_KNOWN_COLNAME,
         IS_ADDED_TO_ANKI_COLNAME,
         IS_SUPSENDED_FOR_SOURCE_COLNAME,
+        TO_BE_STUDIED_FROM_DATE_COLNAME,
     ],
     KANJI_TABLE_NAME: [
         KANJI_COLNAME,
@@ -98,7 +100,7 @@ class KnowledgeBase:
     """Knowledge base for vocabulary and kanji
 
     At runtime, data are stored in self. At instanciation, they are loaded from
-    json. At each operation, they are stored in json.
+    pickle. At each operation, they are stored in pickle.
 
     Attributes
         One pd.DataFrame per key in `_DATA_MODEL`. The columns of dataframe p
@@ -128,40 +130,50 @@ class KnowledgeBase:
         """Read pd.DataFrame and attach it to self"""
         filepath = os.path.join(
             _kb_dirpath,
-            df_name + _OUT_JSON_EXTENSIONS,
+            df_name + _OUT_PICKLE_EXTENSION,
         )
         if not os.path.isfile(filepath):
             raise NoKBError(f"No file at {filepath}")
-        with open(filepath, "r") as f:
-            self.__dict__[df_name] = pd.read_json(
-                path_or_buf=f, orient="table"
+        with open(filepath, "rb") as f:
+            self.__dict__[df_name] = pd.read_pickle(
+                filepath_or_buffer=f,
             )
 
     def _save_df(self, df_name: str) -> None:
-        """Write pd.DataFrame from self to json"""
+        """Write pd.DataFrame from self to pickle"""
         filepath = os.path.join(
             _kb_dirpath,
-            df_name + _OUT_JSON_EXTENSIONS,
+            df_name + _OUT_PICKLE_EXTENSION,
         )
-        with open(filepath, "w") as f:
-            self.__dict__[df_name].to_json(
-                path_or_buf=f, orient="table", index=False
-            )
+        with open(filepath, "wb") as f:
+            self.__dict__[df_name].to_pickle(path=f)
 
     def _load_kb(self) -> None:
-        """Load the kb frm jsons"""
+        """Load the kb from pickle"""
         for df_name in DATA_MODEL.keys():
             self._load_df(df_name=df_name)
 
     def _save_kb(self) -> None:
-        """Save the kb into several jsons (1 per table)"""
+        """Save the kb
+
+        Under the hood, the kb i saved into several pickle files (1 per table).
+        These pickle will be loaded upon re-instantiation of KnowledgeBase.
+        """
         for df_name in DATA_MODEL.keys():
             self._save_df(df_name=df_name)
 
-    def add_doc(self, doc: str, doc_name: str) -> None:
+    def add_doc(
+        self, doc: str, doc_name: str, drop_ascii_alphanum_toks: bool
+    ) -> None:
         """Parse a document and add it's voc and sentences to kb
 
-        `doc_name` is not path-related, and rather used as reference in the kb."""
+        Args:
+            doc (str): doc
+            doc_name (str): name to be used as reference in kb. Not a path or
+                filename.
+            drop_ascii_alphanum_toks (bool): discard tokens that are only ascii
+                alphanum?
+        """
         if (
             doc_name
             in self.__dict__[TOKEN_TABLE_NAME][SOURCE_NAME_COLNAME].values
@@ -179,6 +191,13 @@ class KnowledgeBase:
         parsed_doc = parser.ParseDocument(doc=doc)
         token_count_sentid = parsed_doc.tokens
         sentid_sent_toks = parsed_doc.sentences
+        # Drop tokens that are pure alphanum if required
+        if drop_ascii_alphanum_toks:
+            token_count_sentid = {
+                k: v
+                for k, v in token_count_sentid.items()
+                if not is_only_ascii_alphanum(text=k)
+            }
         # Get kanjis
         unique_kanjis = get_unique_kanjis(doc)
         # Get associated tokens
@@ -203,6 +222,9 @@ class KnowledgeBase:
                 ],
                 IS_SUPSENDED_FOR_SOURCE_COLNAME: [
                     False for i in range(len(token_count_sentid))
+                ],
+                TO_BE_STUDIED_FROM_DATE_COLNAME: [
+                    None for i in range(len(token_count_sentid))
                 ],
             },
             table_name=TOKEN_TABLE_NAME,
@@ -613,3 +635,17 @@ class KnowledgeBase:
         # Make into KanjiCard
         kanji_card = kanji_info_to_kanji_card(kanji_info=kanji_info)
         return kanji_card
+
+
+# TODO: remove
+# from booktocards.jj_dicts import ManipulateSanseido
+# from booktocards.tatoeba import ManipulateTatoeba
+# kb = KnowledgeBase()
+# card_1 = kb.make_voc_cards(token="名前", source_name="A1p",
+#            max_source_examples=2,
+#            max_tatoeba_examples=2,
+#            translate_source_ex=False,
+#    sanseido_manipulator=ManipulateSanseido(),
+#    tatoeba_db=ManipulateTatoeba(),
+#    deepl_translator=None,
+# )

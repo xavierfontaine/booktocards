@@ -6,7 +6,7 @@ authors = ["Xavier Fontaine"]
 license = "MIT License"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = ">=3.9.9,<3.10"
 SudachiPy = "^0.6.3"
 ipython = "^8.1.0"
 jamdict = "^0.1a11"
@@ -20,6 +20,8 @@ PyYAML = "^6.0"
 deepl = "^1.10.0"
 tatoebatools = "^0.2.1"
 ankipandas = "^0.3.10"
+streamlit = "^1.13.0"
+streamlit-aggrid = "^0.3.3"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1.0"

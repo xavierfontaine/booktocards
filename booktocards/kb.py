@@ -1,4 +1,5 @@
 import copy
+import datetime
 from typing import Literal, Optional
 import os
 import pandas as pd
@@ -113,10 +114,21 @@ class KnowledgeBase:
             self._load_kb()
         except NoKBError:
             logger.info(f"-- No existing kb. Initilazing it.")
+            # Create table
             for df_name in DATA_MODEL.keys():
                 self.__dict__[df_name] = pd.DataFrame(
                     columns=DATA_MODEL[df_name]
                 )
+            # Cast to bool whatever needs to be
+            for df_name in [TOKEN_TABLE_NAME, KANJI_TABLE_NAME]:
+                for col_name in [
+                    IS_ADDED_TO_ANKI_COLNAME,
+                    IS_KNOWN_COLNAME,
+                    IS_SUPSENDED_FOR_SOURCE_COLNAME,
+                ]:
+                    self[df_name][col_name] = self[df_name][col_name].astype(
+                        "bool"
+                    )
             self._save_df(df_name=df_name)
             logger.info(f"-- Initialized")
 
@@ -357,7 +369,7 @@ class KnowledgeBase:
         Returns:
             None:
         """
-        # Finf where item_colname is equal to item_value
+        # Find where item_colname is equal to item_value
         is_item = self.__dict__[table_name][item_colname] == item_value
         # Sanity
         if not any(is_item):
@@ -416,7 +428,7 @@ class KnowledgeBase:
         Returns:
             None
         """
-        # Finf where item_colname is equal to item_value
+        # Find where item_colname is equal to item_value
         is_item = self.__dict__[table_name][item_colname] == item_value
         is_source = (
             self.__dict__[table_name][SOURCE_NAME_COLNAME] == source_name
@@ -458,7 +470,7 @@ class KnowledgeBase:
         Returns:
             None
         """
-        # Finf where item_colname is equal to item_value
+        # Find where item_colname is equal to item_value
         is_item = self.__dict__[table_name][item_colname] == item_value
         is_source = (
             self.__dict__[table_name][SOURCE_NAME_COLNAME] == source_name
@@ -474,6 +486,107 @@ class KnowledgeBase:
         ] = True
         # Save
         self._save_kb()
+
+    def set_study_from_date_for_token_source(
+        self,
+        token_value: str,
+        source_name: str,
+        date: datetime.date,
+    ) -> None:
+        """Set the 'study from' date for item
+
+        The date is stored in TO_BE_STUDIED_FROM_DATE_COLNAME
+        """
+        # Find where TOKEN_COLNAME is equal to item_value
+        is_item = self.__dict__[TOKEN_TABLE_NAME][TOKEN_COLNAME] == token_value
+        is_source = (
+            self.__dict__[TOKEN_TABLE_NAME][SOURCE_NAME_COLNAME] == source_name
+        )
+        # Sanity
+        if not any(is_item):
+            raise ValueError(
+                f"{token_value=} cannot be found in {TOKEN_TABLE_NAME}[{TOKEN_COLNAME}]"
+            )
+        # Set data
+        self.__dict__[TOKEN_TABLE_NAME].loc[
+            is_item & is_source, TO_BE_STUDIED_FROM_DATE_COLNAME
+        ] = date
+        # Save
+        self._save_kb()
+
+    def get_items(
+        self,
+        table_name: Literal[
+            TOKEN_TABLE_NAME,
+            KANJI_TABLE_NAME,
+        ],
+        only_not_added_known_suspended: bool,
+        item_value: Optional[str] = None,
+        item_colname: Optional[ColName] = None,
+        source_name: Optional[str] = None,
+        max_study_date: Optional[datetime.date] = None,
+    ) -> pd.DataFrame:
+        """Get items
+
+        Args:
+            table_name (Literal[
+                    TOKEN_TABLE_NAME,
+                    KANJI_TABLE_NAME,
+                ]): table name
+            only_not_added_known_suspended (bool): retrieve only those items
+            with no True in IS_ADDED_TO_ANKI_COLNAME, IS_KNOWN_COLNAME and
+            IS_SUPSENDED_FOR_SOURCE_COLNAME.
+            item_value (Optional[str]): value of the item. `item_colname` must
+                be set.
+            item_colname (Optional[ColName]): name of the column in which to
+                look for the item.
+            source_name (Optional[str]): name of the source
+            max_study_date (Optional[datetime.date]): retrieve items with no
+                study date of study date <= max_study_date.
+
+        Returns:
+            pd.DataFrame:
+        """
+        df = self.__dict__[table_name]
+        is_items_rows = pd.Series(
+            [True for _ in range(len(df))], index=df.index
+        )
+        if item_value is not None:
+            if item_colname is None:
+                raise ValueError(
+                    "`item_colname` must be set when `item_value` is set."
+                )
+            is_items_rows = (
+                is_items_rows
+                & (df[item_colname] == item_value)
+            )
+        if source_name is not None:
+            is_items_rows = (
+                is_items_rows
+                & (df[SOURCE_NAME_COLNAME] == source_name)
+            )
+        if only_not_added_known_suspended:
+            is_items_rows = (
+                is_items_rows
+                & (~df[IS_ADDED_TO_ANKI_COLNAME])
+                & (~df[IS_KNOWN_COLNAME])
+                & (~df[IS_SUPSENDED_FOR_SOURCE_COLNAME])
+            )
+        if max_study_date:
+            if table_name == KANJI_TABLE_NAME:
+                raise ValueError(
+                    "`last_study_day` was provided but is not relevant to"
+                    " kanjis"
+                )
+            if (
+                not df.loc[is_items_rows, TO_BE_STUDIED_FROM_DATE_COLNAME]
+                .isnull()
+                .all()
+            ):
+                is_items_rows = is_items_rows & (
+                    df[TO_BE_STUDIED_FROM_DATE_COLNAME] <= max_study_date
+                )
+        return df[is_items_rows]
 
     def remove_doc(self, doc_name: str):
         """Remove doc from kb"""
@@ -537,6 +650,7 @@ class KnowledgeBase:
             lemma=entry[TOKEN_COLNAME],
             count=entry[COUNT_COLNAME],
             source_sent_ids=entry[SEQS_IDS_COLNAME],
+            source_name_str=entry[SOURCE_NAME_COLNAME],
         )
         # Get the dictionary entries
         token_info.dict_entries = jamdict_utils.get_dict_entries(
@@ -630,7 +744,7 @@ class KnowledgeBase:
         # Get KanjiInfo
         kanji_info = jamdict_utils.get_kanji_info(kanji=kanji)
         # Add source/tokens associated to the kanji
-        kanji_info.seen_in_source = source_name
+        kanji_info.source_name = source_name
         kanji_info.seen_in_tokens = entry[ASSOCIATED_TOKS_FROM_SOURCE_COLNAME]
         # Make into KanjiCard
         kanji_card = kanji_info_to_kanji_card(kanji_info=kanji_info)

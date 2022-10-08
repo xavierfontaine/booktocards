@@ -12,6 +12,7 @@ from booktocards.datacl import VocabCard, KanjiCard
 from booktocards.kb import KnowledgeBase
 from booktocards.jj_dicts import ManipulateSanseido
 from booktocards.tatoeba import ManipulateTatoeba
+from booktocards.text import get_unique_kanjis
 from booktocards.kb import (
     TOKEN_TABLE_NAME,
     KANJI_TABLE_NAME,
@@ -31,6 +32,20 @@ from booktocards.kb import (
 # =========
 # Functions
 # =========
+def make_ag(df: pd.DataFrame) -> AgGridReturn:
+    """Make an ag grid from a DataFrame"""
+    grid_option_builder = GridOptionsBuilder.from_dataframe(df)
+    grid_option_builder.configure_selection(
+        selection_mode="multiple", use_checkbox=True
+    )
+    grid_options = grid_option_builder.build()
+    ag_obj = AgGrid(
+        df,
+        gridOptions=grid_options,
+    )
+    return ag_obj
+
+
 def extract_item_and_source_from_ag(
     ag_grid_output: AgGridReturn,
     item_colname: Literal[TOKEN_COLNAME, KANJI_COLNAME],
@@ -81,12 +96,14 @@ def make_voc_cards_from_df(
     token_df: pd.DataFrame,
     translate_source_ex: bool,
     session_state,
+    token_colname: str = TOKEN_COLNAME,
+    source_name_colname: str = SOURCE_NAME_COLNAME,
 ) -> list[VocabCard]:
     """Wrapper for code legibility"""
     cards = []
     kb = session_state["kb"]
     for token, source_name in token_df[
-        [TOKEN_COLNAME, SOURCE_NAME_COLNAME]
+        [token_colname, source_name_colname]
     ].values:
         card = make_voc_cards_from_query(
             token=token,
@@ -98,6 +115,61 @@ def make_voc_cards_from_df(
     return cards
 
 
+def get_kanjis_sources_from_token_df(
+    token_df: pd.DataFrame,
+    session_state,
+    kanji_colname: str,
+    source_name_colname: str,
+) -> pd.DataFrame:
+    """Extract [kanji, source] couples from a token dataframe
+
+    Only kanjis that are not known/added to anki/suspended for source are
+    extracted.
+    """
+    kanjis_sources = []
+    kanji_df = session_state["kb"][KANJI_TABLE_NAME]
+    for token, source_name in token_df[
+        [kanji_colname, source_name_colname]
+    ].values:
+        kanjis = get_unique_kanjis(doc=token)
+        print(kanjis)
+        for kanji in kanjis:
+            # TODO: this filtering should happen as a function inside kb
+            # Add only of not known or added to anki or suspended for source
+            row_to_check = kanji_df[
+                (kanji_df[SOURCE_NAME_COLNAME] == source_name)
+                & (kanji_df[KANJI_COLNAME] == kanji)
+            ]
+            assert len(row_to_check) == 1
+            row_to_check = row_to_check.iloc[0]
+            if (
+                (~row_to_check[IS_ADDED_TO_ANKI_COLNAME])
+                & (~row_to_check[IS_KNOWN_COLNAME])
+                & (~row_to_check[IS_SUPSENDED_FOR_SOURCE_COLNAME])
+            ):
+                kanjis_sources.append([kanji, source_name])
+    kanjis_sources_df = pd.DataFrame(
+        data=kanjis_sources,
+        columns=[KANJI_COLNAME, SOURCE_NAME_COLNAME],
+    )
+    kanjis_sources_df = kanjis_sources_df.drop_duplicates()
+    return kanjis_sources_df
+
+
+def make_kanji_cards_from_df(
+    df: pd.DataFrame,
+    session_state,
+) -> list[KanjiCard]:
+    """Make kanji cards from a df containing KANJI_COLNAME and
+    SOURCE_NAME_COLNAME"""
+    cards = []
+    kb = session_state["kb"]
+    for kanji, source_name in df[[KANJI_COLNAME, SOURCE_NAME_COLNAME]].values:
+        card = kb.make_kanji_card(kanji=kanji, source_name=source_name)
+        cards.append(card)
+    return cards
+
+
 # =========
 # Constants
 # =========
@@ -106,10 +178,11 @@ TIME_BTWN_KANJ_AND_TOK = 22  # after adding kanji, time before adding voc
 # Parameters for card creation
 MAX_SOURCE_EX = 3
 MAX_TATOEBA_EX = 3
-
 # Keys of the "secrets.yaml" file
 SECRETS_DEEPL_KEY_KEY = "deepl_api_key"
-
+# Card attribute names
+KANJI_CARD_KANJI_ATTR_NAME = "lemma"
+KANJI_CARD_SOURCE_ATTR_NAME = "source_name_str"
 
 # ==================
 # Init session state
@@ -332,6 +405,29 @@ st.dataframe(st.session_state["to_add_kanji_df"])
 # Check kanji are known
 # =====================
 st.subheader("Confirm kanji knowledge")
+if len(st.session_state["to_add_tok_df"]) != 0:
+    kanjis_cards_from_tokens = make_kanji_cards_from_df(
+        df=get_kanjis_sources_from_token_df(
+            token_df=st.session_state["to_add_tok_df"],
+            session_state=st.session_state,
+            kanji_colname=KANJI_CARD_KANJI_ATTR_NAME,
+            source_name_colname=KANJI_CARD_SOURCE_ATTR_NAME,
+        ),
+        session_state=st.session_state,
+    )
+    ag_obj = make_ag(df=pd.DataFrame(kanjis_cards_from_tokens))
+    selected_kanji_source_cples = extract_item_and_source_from_ag(
+        ag_grid_output=ag_obj, item_colname=KANJI_COLNAME
+    )
+    st.write(f"Selected kanjis: {selected_kanji_source_cples}")
+else:
+    st.info("No token in the adding queue for now.")
+# TODO: dans kb, mettre un accès filtré aux datasets selon is in anki etc., de
+# telle sorte que je peux réutiliser ça partout.
+
+# TODO: mettre en place le mécanisme d'ajout et de sélection
+# TODO: bloquer si l'utilisateur n'a pas ajouté/marqué comme connus/suspendus
+# tous les kanjis
 
 
 # =============
@@ -352,21 +448,14 @@ st.subheader("Confirm kanji knowledge")
 # When seletcted, user can either mark as known, or add to previous df.
 # If already enough tokens, raise error
 # TODO
+# Should only be cards that have no due date + other conditions
 df = token_df[: (n_days * n_lessons_day)]
-grid_option_builder = GridOptionsBuilder.from_dataframe(df)
-grid_option_builder.configure_selection(
-    selection_mode="multiple", use_checkbox=True
-)
-grid_options = grid_option_builder.build()
-ag_obj = AgGrid(
-    df,
-    gridOptions=grid_options,
-)
-token_source_cples = extract_item_and_source_from_ag(
+ag_obj = make_ag(df=df)
+selected_tok_source_cples = extract_item_and_source_from_ag(
     ag_grid_output=ag_obj,
     item_colname=TOKEN_COLNAME,
 )
-st.text(token_source_cples)
+st.write(f"Selected token: {selected_tok_source_cples}")
 # Write the files somewhere, and *then* mark items as known.
 # Download should be made from where the files have been written.
 # TODO

@@ -43,6 +43,7 @@ class TokenInfo:
     source_ex_str_transl: Optional[List[Sentence]] = None
     tatoeba_ex_str: Optional[List[Sentence]] = None
     tatoeba_ex_str_transl: Optional[List[Sentence]] = None
+    source_name_str: Optional[str] = None
 
 
 @dataclass
@@ -62,6 +63,7 @@ class VocabCard:
     meanings_str: Optional[str] = None
     sanseido_def_str: Optional[str] = None
     examples_str: Optional[str] = None
+    source_name_str: Optional[str] = None
 
 
 def token_info_to_voc_cards(
@@ -122,6 +124,8 @@ def token_info_to_voc_cards(
             card.sanseido_def_str = "\n".join(per_reading_def)
         else:
             card.sanseido_def_str = ""
+        # Add source name
+        card.source_name_str = token_info.source_name_str
         # Append current card ot set of output cards
         cards.append(card)
     return cards
@@ -140,7 +144,7 @@ class KanjiInfo:
     jlpt: Optional[int] = None
     variants: list[str] = field(default_factory=list)
     seen_in_tokens: list[str] = field(default_factory=list)
-    seen_in_source: Optional[str] = None
+    source_name: Optional[str] = None
 
 
 @dataclass
@@ -160,7 +164,7 @@ class KanjiCard:
     jlpt: Optional[int] = None
     variants_str: Optional[str] = None
     seen_in_tokens_str: Optional[str] = None
-    seen_in_source: Optional[str] = None
+    source_name: Optional[str] = None
 
 
 def kanji_info_to_kanji_card(kanji_info: KanjiInfo) -> KanjiCard:
@@ -188,7 +192,7 @@ def kanji_info_to_kanji_card(kanji_info: KanjiInfo) -> KanjiCard:
     if kanji_info.seen_in_tokens is not None:
         seen_in_tokens_str = ", ".join(kanji_info.seen_in_tokens)
     jlpt = kanji_info.jlpt
-    seen_in_source = kanji_info.seen_in_source
+    source_name = kanji_info.source_name
     # Make card
     kanji_card = KanjiCard(
         kanji=kanji,
@@ -200,6 +204,6 @@ def kanji_info_to_kanji_card(kanji_info: KanjiInfo) -> KanjiCard:
         jlpt=jlpt,
         variants_str=variants_str,
         seen_in_tokens_str=seen_in_tokens_str,
-        seen_in_source=seen_in_source,
+        source_name=source_name,
     )
     return kanji_card

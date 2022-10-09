@@ -32,9 +32,15 @@ def test_files_are_created_and_reloaded(monkeypatch, tmp_path):
     assert set(exp_self_tables) == set(list(DATA_MODEL.keys()))
     # Check there is not file
     assert len(os.listdir(path)) == 0
-    # Check 1 file has been created
+    # Check 3 files and one folder have been created
     kb = booktocards.kb.KnowledgeBase()
-    assert len(os.listdir(path)) == 1
+    assert len(os.listdir(path)) == 4
+    # Inside the folder, checjk 3 files have been created
+    backup_path = os.path.join(
+        path,
+        str(datetime.date.today()),
+    )
+    assert len(os.listdir(backup_path)) == 3
     # Check that tables are empty df
     for table_name in exp_self_tables:
         assert isinstance(kb.__dict__[table_name], pd.DataFrame)
@@ -53,7 +59,8 @@ def test_files_are_created_and_reloaded(monkeypatch, tmp_path):
         ].to_list()
     ) == sorted([["食べる"], ["吐く"]])
     assert kb.__dict__[SEQ_TABLE_NAME].shape[0] == 1
-    # Reload and check everything is still here
+    # Save, reload and check everything is still here
+    kb.save_kb()
     kb = booktocards.kb.KnowledgeBase()
     assert kb.__dict__[TOKEN_TABLE_NAME].shape[0] == 2
     assert kb.__dict__[KANJI_TABLE_NAME].shape[0] == 2
@@ -104,17 +111,18 @@ def test_set_to_known_works(monkeypatch, tmp_path):
     # Add a 2nd doc (the same)
     kb.add_doc(doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False)
     # Make sure that IS_KNOWN_COLNAME is False
-    assert sum(kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME]) == 0
+    assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 0
     # Check what happens if set to known
     kb.set_item_to_known(
         item_value="食べる",
         item_colname=TOKEN_COLNAME,
         table_name=TOKEN_TABLE_NAME,
     )
-    assert sum(kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME]) == 2
-    # Check this is all well saved
+    assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 2
+    # Check this is still here after saving/reloading
+    kb.save_kb()
     kb = booktocards.kb.KnowledgeBase()
-    assert sum(kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME]) == 2
+    assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 2
 
 
 def test_automatically_set_known_for_new_doc(monkeypatch, tmp_path):
@@ -132,10 +140,10 @@ def test_automatically_set_known_for_new_doc(monkeypatch, tmp_path):
         table_name=TOKEN_TABLE_NAME,
     )
     # Should be one set to known
-    assert sum(kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME]) == 1
+    assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 1
     # Add a 2nd doc (the same). Should be 2 set to known
     kb.add_doc(doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False)
-    assert sum(kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME]) == 2
+    assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 2
 
 
 def test_set_added_to_anki_works(monkeypatch, tmp_path):
@@ -149,18 +157,20 @@ def test_set_added_to_anki_works(monkeypatch, tmp_path):
     # Add a 2nd doc (the same)
     kb.add_doc(doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False)
     # Make sure that all is false
-    assert sum(kb.__dict__[TOKEN_TABLE_NAME][IS_ADDED_TO_ANKI_COLNAME]) == 0
-    # Check what happens if set to known
-    kb.set_item_to_added_to_anki(
+    assert kb.__dict__[TOKEN_TABLE_NAME][IS_ADDED_TO_ANKI_COLNAME].sum() == 0
+    # Check what happens if set to known and added to Anki
+    kb.set_item_to_known_and_added_to_anki(
         item_value="食べる",
         source_name="test_doc2",
         item_colname=TOKEN_COLNAME,
         table_name=TOKEN_TABLE_NAME,
     )
-    assert sum(kb.__dict__[TOKEN_TABLE_NAME][IS_ADDED_TO_ANKI_COLNAME]) == 1
-    # Check this is all well saved
+    assert kb.__dict__[TOKEN_TABLE_NAME][IS_ADDED_TO_ANKI_COLNAME].sum() == 1
+    assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 1
+    # Check this is still here after saving/reloading
+    kb.save_kb()
     kb = booktocards.kb.KnowledgeBase()
-    assert sum(kb.__dict__[TOKEN_TABLE_NAME][IS_ADDED_TO_ANKI_COLNAME]) == 1
+    assert kb.__dict__[TOKEN_TABLE_NAME][IS_ADDED_TO_ANKI_COLNAME].sum() == 1
 
 
 def test_set_is_suspended_for_source_works(monkeypatch, tmp_path):
@@ -186,13 +196,14 @@ def test_set_is_suspended_for_source_works(monkeypatch, tmp_path):
         table_name=TOKEN_TABLE_NAME,
     )
     assert (
-        sum(kb.__dict__[TOKEN_TABLE_NAME][IS_SUPSENDED_FOR_SOURCE_COLNAME])
+        kb.__dict__[TOKEN_TABLE_NAME][IS_SUPSENDED_FOR_SOURCE_COLNAME].sum()
         == 1
     )
-    # Check this is all well saved
+    # Check this is still here after saving/reloading
+    kb.save_kb()
     kb = booktocards.kb.KnowledgeBase()
     assert (
-        sum(kb.__dict__[TOKEN_TABLE_NAME][IS_SUPSENDED_FOR_SOURCE_COLNAME])
+        kb.__dict__[TOKEN_TABLE_NAME][IS_SUPSENDED_FOR_SOURCE_COLNAME].sum()
         == 1
     )
 
@@ -228,7 +239,7 @@ def test_get_items_works(monkeypatch, tmp_path):
     doc_name = "test_doc"
     kb.add_doc(doc=doc, doc_name=doc_name, drop_ascii_alphanum_toks=False)
     # Set 吐く as known
-    kb.set_item_to_added_to_anki(
+    kb.set_item_to_known_and_added_to_anki(
         item_value="吐く",
         source_name=doc_name,
         item_colname=TOKEN_COLNAME,
@@ -251,7 +262,9 @@ def test_get_items_works(monkeypatch, tmp_path):
     exp_out = ["食べる", "吐く"]
     items = kb.get_items(
         table_name=TOKEN_TABLE_NAME,
-        only_not_added_known_suspended=False,
+        only_not_added=False,
+        only_not_known=False,
+        only_not_suspended=False,
         item_value=None,
         source_name=None,
         item_colname=None,
@@ -263,7 +276,9 @@ def test_get_items_works(monkeypatch, tmp_path):
     exp_out = ["食べる"]
     items = kb.get_items(
         table_name=TOKEN_TABLE_NAME,
-        only_not_added_known_suspended=True,
+        only_not_added=True,
+        only_not_known=True,
+        only_not_suspended=True,
         item_value=None,
         source_name=None,
         item_colname=None,
@@ -275,7 +290,9 @@ def test_get_items_works(monkeypatch, tmp_path):
     exp_out = ["吐"]
     items = kb.get_items(
         table_name=KANJI_TABLE_NAME,
-        only_not_added_known_suspended=True,
+        only_not_added=True,
+        only_not_known=True,
+        only_not_suspended=True,
         item_value=None,
         source_name=None,
         item_colname=None,
@@ -287,7 +304,9 @@ def test_get_items_works(monkeypatch, tmp_path):
     exp_out = ["食べる"]
     items = kb.get_items(
         table_name=TOKEN_TABLE_NAME,
-        only_not_added_known_suspended=False,
+        only_not_added=False,
+        only_not_known=False,
+        only_not_suspended=False,
         item_value=exp_out[0],
         source_name=doc_name,
         item_colname=TOKEN_COLNAME,
@@ -299,7 +318,9 @@ def test_get_items_works(monkeypatch, tmp_path):
     exp_out = ["吐"]
     items = kb.get_items(
         table_name=KANJI_TABLE_NAME,
-        only_not_added_known_suspended=False,
+        only_not_added=False,
+        only_not_known=False,
+        only_not_suspended=False,
         item_value=exp_out[0],
         source_name=doc_name,
         item_colname=KANJI_COLNAME,
@@ -310,7 +331,9 @@ def test_get_items_works(monkeypatch, tmp_path):
     # Return df of size zero when no match
     items = kb.get_items(
         table_name=TOKEN_TABLE_NAME,
-        only_not_added_known_suspended=False,
+        only_not_added=False,
+        only_not_known=False,
+        only_not_suspended=False,
         item_value="鳥",
         source_name=doc_name,
         item_colname=TOKEN_COLNAME,
@@ -322,7 +345,9 @@ def test_get_items_works(monkeypatch, tmp_path):
     exp_out = ["食べる"]
     items = kb.get_items(
         table_name=TOKEN_TABLE_NAME,
-        only_not_added_known_suspended=False,
+        only_not_added=False,
+        only_not_known=False,
+        only_not_suspended=False,
         item_value="食べる",
         source_name=doc_name,
         item_colname=TOKEN_COLNAME,
@@ -334,7 +359,9 @@ def test_get_items_works(monkeypatch, tmp_path):
     yesterday = today + datetime.timedelta(days=-1)
     items = kb.get_items(
         table_name=TOKEN_TABLE_NAME,
-        only_not_added_known_suspended=False,
+        only_not_added=False,
+        only_not_known=False,
+        only_not_suspended=False,
         item_value="食べる",
         source_name=doc_name,
         item_colname=TOKEN_COLNAME,

@@ -109,9 +109,12 @@ class KnowledgeBase:
     """
 
     def __init__(self):
-        # Try load all data, and if impossible, initialize
+        # Get now's timestamp for naming folders
+        self.now = str(datetime.date.now())
+        # Try load all data
         try:
             self._load_kb()
+        # If impossible, initialize the db and save it
         except NoKBError:
             logger.info(f"-- No existing kb. Initilazing it.")
             # Create table
@@ -122,15 +125,14 @@ class KnowledgeBase:
             # Cast to bool whatever needs to be
             for df_name in [TOKEN_TABLE_NAME, KANJI_TABLE_NAME]:
                 for col_name in [
-                    IS_ADDED_TO_ANKI_COLNAME,
                     IS_KNOWN_COLNAME,
                     IS_SUPSENDED_FOR_SOURCE_COLNAME,
                 ]:
                     self[df_name][col_name] = self[df_name][col_name].astype(
                         "bool"
                     )
-            self._save_df(df_name=df_name)
-            logger.info(f"-- Initialized")
+            self.save_kb()
+            logger.info(f"-- Initialized and saved")
 
     def __getitem__(self, arg) -> pd.DataFrame:
         """Get tables through square brakets"""
@@ -151,10 +153,23 @@ class KnowledgeBase:
                 filepath_or_buffer=f,
             )
 
-    def _save_df(self, df_name: str) -> None:
-        """Write pd.DataFrame from self to pickle"""
+    def _save_df(self, df_name: str, is_backup: bool) -> None:
+        """Write pd.DataFrame from self to pickle
+
+        If `is_backup`, save into a subrepo named after self's instantiation
+        time's timestamp.
+        """
+        if is_backup:
+            dirpath = os.path.join(
+                _kb_dirpath,
+                self.now,
+            )
+            if not os.path.isdir(dirpath):
+                os.mkdir(dirpath)
+        else:
+            dirpath = _kb_dirpath
         filepath = os.path.join(
-            _kb_dirpath,
+            dirpath,
             df_name + _OUT_PICKLE_EXTENSION,
         )
         with open(filepath, "wb") as f:
@@ -165,14 +180,18 @@ class KnowledgeBase:
         for df_name in DATA_MODEL.keys():
             self._load_df(df_name=df_name)
 
-    def _save_kb(self) -> None:
+    def save_kb(self, make_backup: bool = True) -> None:
         """Save the kb
 
         Under the hood, the kb i saved into several pickle files (1 per table).
         These pickle will be loaded upon re-instantiation of KnowledgeBase.
+
+        If `make_backup`, will make another save in a backup directory.
         """
         for df_name in DATA_MODEL.keys():
-            self._save_df(df_name=df_name)
+            self._save_df(df_name=df_name, is_backup=False)
+            if make_backup:
+                self._save_df(df_name=df_name, is_backup=True)
 
     def add_doc(
         self, doc: str, doc_name: str, drop_ascii_alphanum_toks: bool
@@ -226,10 +245,10 @@ class KnowledgeBase:
                 SOURCE_NAME_COLNAME: [
                     doc_name for i in range(len(token_count_sentid))
                 ],
-                IS_ADDED_TO_ANKI_COLNAME: [
-                    False for i in range(len(token_count_sentid))
-                ],
                 IS_KNOWN_COLNAME: [
+                    pd.NA for i in range(len(token_count_sentid))
+                ],
+                IS_ADDED_TO_ANKI_COLNAME: [
                     False for i in range(len(token_count_sentid))
                 ],
                 IS_SUPSENDED_FOR_SOURCE_COLNAME: [
@@ -250,7 +269,7 @@ class KnowledgeBase:
                     uniq_kanjis_w_toks.values()
                 ),
                 IS_KNOWN_COLNAME: [
-                    False for i in range(len(uniq_kanjis_w_toks))
+                    pd.NA for i in range(len(uniq_kanjis_w_toks))
                 ],
                 IS_ADDED_TO_ANKI_COLNAME: [
                     False for i in range(len(uniq_kanjis_w_toks))
@@ -280,7 +299,6 @@ class KnowledgeBase:
             table_name=SEQ_TABLE_NAME,
         )
         # Save in kb
-        self._save_kb()
         logger.info(f"-- Added {doc_name=} to kb.")
 
     def _add_items(
@@ -378,8 +396,6 @@ class KnowledgeBase:
             )
         # Set to known in all sources
         self.__dict__[table_name].loc[is_item, IS_KNOWN_COLNAME] = True
-        # Save
-        self._save_kb()
 
     def set_item_to_unknown(
         self,
@@ -400,10 +416,8 @@ class KnowledgeBase:
             )
         # Set to unknown in all sources
         self.__dict__[table_name].loc[is_item, IS_KNOWN_COLNAME] = False
-        # Save
-        self._save_kb()
 
-    def set_item_to_added_to_anki(
+    def set_item_to_known_and_added_to_anki(
         self,
         item_value: str,
         source_name: str,
@@ -413,7 +427,7 @@ class KnowledgeBase:
             KANJI_TABLE_NAME,
         ],
     ) -> None:
-        """Set item as added to Anki
+        """Set item as added to Anki and known
 
         Args:
             item_value (str): value of the item we want to set as added
@@ -440,10 +454,12 @@ class KnowledgeBase:
             )
         # Set to known in all sources
         self.__dict__[table_name].loc[
+            is_item & is_source, IS_KNOWN_COLNAME
+        ] = True
+        # Set to added to anki in all sources
+        self.__dict__[table_name].loc[
             is_item & is_source, IS_ADDED_TO_ANKI_COLNAME
         ] = True
-        # Save
-        self._save_kb()
 
     def set_item_to_suspended_for_source(
         self,
@@ -484,8 +500,6 @@ class KnowledgeBase:
         self.__dict__[table_name].loc[
             is_item & is_source, IS_SUPSENDED_FOR_SOURCE_COLNAME
         ] = True
-        # Save
-        self._save_kb()
 
     def set_study_from_date_for_token_source(
         self,
@@ -511,8 +525,6 @@ class KnowledgeBase:
         self.__dict__[TOKEN_TABLE_NAME].loc[
             is_item & is_source, TO_BE_STUDIED_FROM_DATE_COLNAME
         ] = date
-        # Save
-        self._save_kb()
 
     def get_items(
         self,
@@ -520,7 +532,9 @@ class KnowledgeBase:
             TOKEN_TABLE_NAME,
             KANJI_TABLE_NAME,
         ],
-        only_not_added_known_suspended: bool,
+        only_not_added: bool,
+        only_not_known: bool,
+        only_not_suspended: bool,
         item_value: Optional[str] = None,
         item_colname: Optional[ColName] = None,
         source_name: Optional[str] = None,
@@ -533,9 +547,12 @@ class KnowledgeBase:
                     TOKEN_TABLE_NAME,
                     KANJI_TABLE_NAME,
                 ]): table name
-            only_not_added_known_suspended (bool): retrieve only those items
-            with no True in IS_ADDED_TO_ANKI_COLNAME, IS_KNOWN_COLNAME and
-            IS_SUPSENDED_FOR_SOURCE_COLNAME.
+            only_not_added (bool): retrieve only those items with no True in
+                IS_ADDED_TO_ANKI_COLNAME.
+            only_not_known (bool): retrieve only those items with no True in
+                IS_KNOWN_COLNAME (all False or NA.)
+            only_not_added (bool): retrieve only those items with no True in
+                IS_SUPSENDED_FOR_SOURCE_COLNAME.
             item_value (Optional[str]): value of the item. `item_colname` must
                 be set.
             item_colname (Optional[ColName]): name of the column in which to
@@ -556,21 +573,22 @@ class KnowledgeBase:
                 raise ValueError(
                     "`item_colname` must be set when `item_value` is set."
                 )
-            is_items_rows = (
-                is_items_rows
-                & (df[item_colname] == item_value)
-            )
+            is_items_rows = is_items_rows & (df[item_colname] == item_value)
         if source_name is not None:
-            is_items_rows = (
-                is_items_rows
-                & (df[SOURCE_NAME_COLNAME] == source_name)
+            is_items_rows = is_items_rows & (
+                df[SOURCE_NAME_COLNAME] == source_name
             )
-        if only_not_added_known_suspended:
-            is_items_rows = (
-                is_items_rows
-                & (~df[IS_ADDED_TO_ANKI_COLNAME])
-                & (~df[IS_KNOWN_COLNAME])
-                & (~df[IS_SUPSENDED_FOR_SOURCE_COLNAME])
+        if only_not_added:
+            is_items_rows = is_items_rows & (
+                df[IS_ADDED_TO_ANKI_COLNAME] == False
+            )
+        if only_not_known:
+            is_items_rows = is_items_rows & (
+                (df[IS_KNOWN_COLNAME] == False) | (df[IS_KNOWN_COLNAME].isna())
+            )
+        if only_not_suspended:
+            is_items_rows = is_items_rows & (
+                df[IS_SUPSENDED_FOR_SOURCE_COLNAME] == False
             )
         if max_study_date:
             if table_name == KANJI_TABLE_NAME:
@@ -598,7 +616,6 @@ class KnowledgeBase:
                 ~rows_to_remove
             ]
             logger.info(f"-- Dropped {doc_name=} from {table_name}")
-        self._save_kb()
 
     def make_voc_cards(
         self,

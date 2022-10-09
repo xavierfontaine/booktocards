@@ -1,10 +1,14 @@
 """
 Scheduling of studies
 """
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import pandas as pd
+from deepl import Translator
+from typing import Optional
 
+from booktocards import io
 from booktocards.annotations import Token, Kanji, SourceName
+from booktocards.datacl import VocabCard, KanjiCard
 from booktocards.kb import KnowledgeBase
 from booktocards.kb import (
     TOKEN_TABLE_NAME,
@@ -15,13 +19,29 @@ from booktocards.kb import (
     KANJI_COLNAME,
     SEQ_COLNAME,
 )
+from booktocards.jj_dicts import ManipulateSanseido
+from booktocards.tatoeba import ManipulateTatoeba
 from booktocards.text import get_unique_kanjis
 
 
+# =========
+# Constants
+# =========
+_CARDS_DIRNAME = "cards"
+
+
+# ==========
+# Exceptions
+# ==========
 class EnoughItemsAddedAlready(Exception):
     """Raise when file cannot be found"""
 
     pass
+
+
+# ====
+# Core
+# ====
 
 
 class Scheduler:
@@ -52,7 +72,7 @@ class Scheduler:
         # Init df for vocab with possibly unknown kanji
         self.vocab_w_uncertain_status_df = pd.DataFrame()
         # Init df for newly added vocab (not due) that will go into next round
-        self.new_vocab_for_next_round_df = pd.DataFrame()
+        self.vocab_for_next_round = pd.DataFrame()
         # Init df for newly added kanji that will go into next round
         self.kanji_for_next_round_df = pd.DataFrame()
         # Init df for newly added vocab (not due) that will go into next round
@@ -103,8 +123,8 @@ class Scheduler:
         """
         # TODO: finish docstr
         # Refuse if already enough items added
-        n_added_items = len(self.get_kanjis_for_next_round()) + len(
-            self.get_vocabs_for_next_round()
+        n_added_items = len(self.kanji_for_next_round_df) + len(
+            self.vocab_w_uncertain_status_df()
         )
         max_added_items = self.n_days_study * self.n_cards_days
         if n_added_items >= max_added_items:
@@ -171,8 +191,8 @@ class Scheduler:
                 f"{kanji_not_known_df}"
             )
         # Otherwise, add
-        self.new_vocab_for_next_round_df = pd.concat(
-            self.new_vocab_for_next_round_df,
+        self.vocab_for_next_round = pd.concat(
+            self.vocab_for_next_round,
             token_df,
         )
         # Mark as known and added to anki in kb
@@ -187,7 +207,7 @@ class Scheduler:
         # TODO: docstr
         # Refuse if already enough items added
         n_added_items = len(self.get_kanjis_for_next_round()) + len(
-            self.get_vocabs_for_next_round()
+            self.vocab_for_next_round
         )
         max_added_items = self.n_days_study * self.n_cards_days
         if n_added_items >= max_added_items:
@@ -242,9 +262,18 @@ class Scheduler:
                 f" `self.vocab_w_uncertain_status_df`. Tried to add {token=}"
                 f" for {source_name}, but {self.vocab_w_uncertain_status_df=}."
             )
+        # Get tokens
+        token_df = self.kb.get_items(
+            table_name=TOKEN_COLNAME,
+            only_not_added_known_suspended=True,
+            item_value=token,
+            item_colname=TOKEN_COLNAME,
+            source_name=source_name,
+            max_study_date=None,
+        )
         # Check all kanjis are marked as know or belong to self.kanji_for_next_round_df
         kanji_not_known_df = self._get_kanjis_sources_from_kb_token_df(
-            token_df=token_df.loc[idx],
+            token_df=token_df,
             only_not_added=False,
             only_not_known=True,
             only_not_suspended=False,
@@ -257,17 +286,10 @@ class Scheduler:
                 f" the list of kanjis to learn.\n{kanji_not_known_ls=}."
                 f"\n{kanji_added_ls=}."
             )
-        # Get tokens
-        token_df = self.kb.get_items(
-            table_name=TOKEN_COLNAME,
-            only_not_added_known_suspended=True,
-            item_value=token,
-            item_colname=TOKEN_COLNAME,
-            source_name=source_name,
-            max_study_date=None,
-        )
         # Remove token from self.vocab_w_uncertain_status_df
-        self._remove_from_uncertain_vocab_df(token=token, source_name=source)
+        self._remove_from_uncertain_vocab_df(
+            token=token, source_name=source_name
+        )
         # Add token to self.vocab_for_rounds_after_next
         token_df = self.kb.get_items(
             table_name=TOKEN_COLNAME,
@@ -299,18 +321,6 @@ class Scheduler:
             uncertain_df[SOURCE_NAME_COLNAME] == source_name
         )
         self.vocab_w_uncertain_status_df = uncertain_df[~is_token_source]
-
-    def get_vocabs_for_next_round(self) -> pd.DataFrame:
-        """Get vocabulary items for next study (from kb)
-
-        Return both newly added vocab for next round, and due vocab
-        """
-        # Happen due vocab and newly added vocab
-        token_df = pd.concat(
-            self.new_vocab_for_next_round_df,
-            self.due_vocab_df,
-        )
-        return token_df
 
     def get_kanjis_for_next_round(self) -> pd.DataFrame:
         """Show kanji items added for next round (from kb)"""
@@ -351,6 +361,115 @@ class Scheduler:
         kanjis_sources_df = kanjis_sources_df.drop_duplicates()
         return kanjis_sources_df
 
+    def _make_voc_cards_from_query(
+        self,
+        token: str,
+        source_name: str,
+        translate_source_ex: bool,
+        max_source_examples: int,
+        max_tatoeba_examples: int,
+        sanseido_manipulator: ManipulateSanseido,
+        tatoeba_db: ManipulateTatoeba,
+        deepl_translator: Optional[Translator] = None,
+    ) -> list[VocabCard]:
+        """Wrapper for code legibility"""
+        kb = self.kb
+        cards = kb.make_voc_cards(
+            token=token,
+            source_name=source_name,
+            translate_source_ex=False,
+            max_source_examples=max_source_examples,
+            max_tatoeba_examples=max_tatoeba_examples,
+            sanseido_manipulator=sanseido_manipulator,
+            tatoeba_db=tatoeba_db,
+            deepl_translator=deepl_translator,
+        )
+        return cards
 
-    def end_scheduling(self, output_dir: str):
-        pass
+    def make_voc_cards_from_df(
+        self,
+        token_df: pd.DataFrame,
+        translate_source_ex: bool,
+        token_colname: str,
+        source_name_colname: str,
+        sanseido_manipulator: ManipulateSanseido,
+        tatoeba_db: ManipulateTatoeba,
+        deepl_translator: Optional[Translator] = None,
+    ) -> list[VocabCard]:
+        """Wrapper for code legibility"""
+        cards = []
+        for token, source_name in token_df[
+            [token_colname, source_name_colname]
+        ].values:
+            card = self._make_voc_cards_from_query(
+                token=token,
+                source_name=source_name,
+                translate_source_ex=False,
+                sanseido_manipulator=sanseido_manipulator,
+                tatoeba_db=tatoeba_db,
+                deepl_translator=deepl_translator,
+            )
+            cards.extend(card)
+        return cards
+
+    def make_kanji_cards_from_df(
+        self,
+        kanji_df: pd.DataFrame,
+    ) -> list[KanjiCard]:
+        """Make kanji cards from a df containing KANJI_COLNAME and
+        SOURCE_NAME_COLNAME"""
+        cards = []
+        for kanji, source_name in kanji_df[
+            [KANJI_COLNAME, SOURCE_NAME_COLNAME]
+        ].values:
+            card = kb.make_kanji_card(kanji=kanji, source_name=source_name)
+            cards.append(card)
+        return cards
+
+    def end_scheduling(
+        self,
+        cards_output_dir: str,
+        translate_source_ex: bool,
+        sanseido_manipulator: ManipulateSanseido,
+        tatoeba_db: ManipulateTatoeba,
+        deepl_translator: Optional[Translator] = None,
+    ):
+        """Write cards and make backup"""
+        # Check no vocab si in vocab_w_uncertain_status_df
+        if len(self.vocab_w_uncertain_status_df) > 0:
+            raise ValueError(
+                "Items remain on self.vocab_w_uncertain_status_df:"
+                f"\n{self.vocab_w_uncertain_status_df}"
+            )
+        # Make cards
+        vocab_cards_df = pd.DataFrame(
+            self.make_voc_cards_from_df(
+                token_df=self.vocab_for_next_round,
+                translate_source_ex=translate_source_ex,
+                token_colname=TOKEN_COLNAME,
+                source_name_colname=SOURCE_NAME_COLNAME,
+                sanseido_manipulator=sanseido_manipulator,
+                tatoeba_db=tatoeba_db,
+                deepl_translator=deepl_translator,
+            )
+        )
+        kanji_cards_df = pd.DataFrame(
+            self.make_kanji_cards_from_df(
+                kanji_df=self.kanji_for_next_round_df,
+            )
+        )
+        # Make folder to write cards
+        now = str(datetime.now())
+        out_folder = os.path.join(
+            io.get_data_path(),
+            "out",
+            _KB_OUT_DIRNAME,
+            now,
+        )
+        # Write cards to xlsx
+        vocab_filepath = os.path.join(out_folder, "vocab.xlsx")
+        kanji_filepath = os.path.join(out_folder, "kanji.xlsx")
+        vocab_cards_df.to_excel(vocab_filepath)
+        kanji_cards_df.to_excel(kanji_filepath)
+        # Save db with backup
+        self.kb.save_kb(make_backup=True)

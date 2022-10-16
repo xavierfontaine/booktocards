@@ -407,16 +407,20 @@ class Scheduler:
             )
         # For each row:
         for idx in token_df.index:
-            # Get kanjis that are not known
-            kanji_not_known_df = self.get_kanjis_sources_from_token_df(
+            # Get kanjis that are not known or added
+            kanji_not_known_in_kb = self.get_kanjis_sources_from_token_df(
                 token_df=token_df.loc[idx].to_frame().T,
-                only_not_added=False,
+                only_not_added=True,
                 only_not_known=True,
                 only_not_suspended=False,
                 only_no_study_date=False,
+            )[KANJI_COLNAME].tolist()
+            kanji_known_in_scheduler = self.kanji_set_to_add_to_known_df
+            kanji_not_known_in_kb_and_sched = set(kanji_not_known_in_kb).difference(
+                kanji_known_in_scheduler
             )
             # If all kanjis are known, trigger add_vocab_for_next_round
-            if len(kanji_not_known_df) == 0:
+            if len(kanji_not_known_in_kb_and_sched) == 0:
                 self.add_vocab_for_next_round(
                     token=token_df.loc[idx, TOKEN_COLNAME],
                     source_name=token_df.loc[idx, SOURCE_NAME_COLNAME],
@@ -461,17 +465,21 @@ class Scheduler:
         )
         assert len(token_df) == 1
         # Refuse if kanji not marked as known
-        kanji_not_known_df = self.get_kanjis_sources_from_token_df(
+        kanji_not_known_in_kb = self.get_kanjis_sources_from_token_df(
             token_df=token_df,
-            only_not_added=False,
+            only_not_added=True,
             only_not_known=True,
             only_not_suspended=False,
             only_no_study_date=False,
+        )[KANJI_COLNAME].tolist()
+        kanji_known_in_scheduler = self.kanji_set_to_add_to_known_df
+        kanji_not_known_in_kb_and_sched = set(kanji_not_known_in_kb).difference(
+            kanji_known_in_scheduler
         )
-        if kanji_not_known_df.shape[0] != 0:
+        if len(kanji_not_known_in_kb_and_sched) != 0:
             raise KanjiNotKnownError(
                 f"Some kanjis in {token} are not known:"
-                f"\n{kanji_not_known_df}"
+                f"\n{kanji_not_known_in_kb_and_sched}"
             )
         # Otherwise, add to vocab for next round
         self.vocab_for_next_round_df = pd.concat(
@@ -563,19 +571,22 @@ class Scheduler:
         )
         assert len(token_df) == 1
         # Check all kanjis are marked as know or belong to self.kanji_for_next_round_df
-        kanji_not_known_df = self.get_kanjis_sources_from_token_df(
+        kanji_not_known_in_kb = self.get_kanjis_sources_from_token_df(
             token_df=token_df,
-            only_not_added=False,
+            only_not_added=True,
             only_not_known=True,
             only_not_suspended=False,
             only_no_study_date=False,
+        )[KANJI_COLNAME].tolist()
+        kanji_known_in_scheduler = self.kanji_set_to_add_to_known_df
+        kanji_not_known_in_kb_and_sched = set(kanji_not_known_in_kb).difference(
+            kanji_known_in_scheduler
         )
-        kanji_not_known_ls = kanji_not_known_df[KANJI_COLNAME].tolist()
         kanji_added_ls = self.kanji_for_next_round_df[KANJI_COLNAME].tolist()
-        if not set(kanji_not_known_ls).issubset(set(kanji_added_ls)):
+        if not set(kanji_not_known_in_kb_and_sched).issubset(set(kanji_added_ls)):
             raise KanjiNotKnownOrAddedError(
                 f"For {token=}, some kanjis are not known, and yet not added to"
-                f" the list of kanjis to learn.\n{kanji_not_known_ls=}."
+                f" the list of kanjis to learn.\n{kanji_not_known_in_kb_and_sched=}."
                 f"\n{kanji_added_ls=}."
             )
         # Remove token from self.vocab_w_uncertain_status_df
@@ -715,7 +726,7 @@ class Scheduler:
     ) -> dict[Literal["vocab", "kanji"], FilePath]:
         """Write cards and make backup"""
         # Make a copy of db before modifying it
-        kb = copy.deepcopy(self.kb)
+        altered_kb = copy.deepcopy(self.kb)
         # Check no vocab si in vocab_w_uncertain_status_df
         if len(self.vocab_w_uncertain_status_df) > 0:
             raise UncertainVocRemainError(
@@ -739,6 +750,62 @@ class Scheduler:
                 kanji_df=self.kanji_for_next_round_df,
             )
         )
+        # Mark vocab added for next round as added
+        self.vocab_for_next_round_df.apply(
+            lambda x: altered_kb.set_item_to_added_to_anki(
+                item_value=x[TOKEN_COLNAME],
+                source_name=x[SOURCE_NAME_COLNAME],
+                item_colname=TOKEN_COLNAME,
+                table_name=TOKEN_TABLE_NAME,
+            )
+        )
+        # Add due date to vocab that has due date
+        self.vocab_for_rounds_after_next_df.apply(
+            lambda x: altered_kb.set_study_from_date_for_token_source(
+                item_value=x[TOKEN_COLNAME],
+                source_name=x[SOURCE_NAME_COLNAME],
+                date=x[TO_BE_STUDIED_FROM_DATE_COLNAME],
+            )
+        )
+        # Mark as known vocab tagged as "to known"
+        for token in self.vocab_set_to_add_to_known_df:
+            altered_kb.set_item_to_known(
+                item_value=token,
+                item_colname=TOKEN_COLNAME,
+                table_name=TOKEN_TABLE_NAME,
+            )
+        # Mark as suspended vocab tagged as "to suspend"
+        for token, source_name in self.vocab_set_to_add_to_suspended_df:
+            altered_kb.set_item_to_suspended_for_source(
+                item_value=token,
+                source_name=source_name,
+                item_colname=TOKEN_COLNAME,
+                table_name=TOKEN_TABLE_NAME,
+            )
+        # Mark kanji added for next round as added
+        self.kanji_for_next_round_df.apply(
+            lambda x: altered_kb.set_item_to_added_to_anki(
+                item_value=x[KANJI_COLNAME],
+                source_name=x[SOURCE_NAME_COLNAME],
+                item_colname=KANJI_COLNAME,
+                table_name=KANJI_TABLE_NAME,
+            )
+        )
+        # Mark as known kanji tagged as "to known"
+        for kanji in self.kanji_set_to_add_to_known_df:
+            altered_kb.set_item_to_known(
+                item_value=kanji,
+                item_colname=KANJI_COLNAME,
+                table_name=KANJI_TABLE_NAME,
+            )
+        # Mark as suspendehd kanji tagged as "to suspended"
+        for kanji, source_name in self.kanji_set_to_add_to_suspended_df:
+            altered_kb.set_item_to_suspended_for_source(
+                item_value=kanji,
+                source_name=source_name,
+                item_colname=KANJI_COLNAME,
+                table_name=KANJI_TABLE_NAME,
+            )
         # Make folder to write cards
         now = str(datetime.datetime.now())
         out_folder = os.path.join(
@@ -751,8 +818,9 @@ class Scheduler:
         vocab_cards_df.to_excel(vocab_filepath)
         kanji_cards_df.to_excel(kanji_filepath)
         # Save db with backup
-        kb.save_kb(make_backup=True)
+        altered_kb.save_kb(make_backup=True)
         return {
             "vocab": vocab_filepath,
             "kanji": kanji_filepath,
         }
+        # TODO: add self-destroy mechanism

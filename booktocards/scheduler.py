@@ -416,9 +416,9 @@ class Scheduler:
                 only_no_study_date=False,
             )[KANJI_COLNAME].tolist()
             kanji_known_in_scheduler = self.kanji_set_to_add_to_known_df
-            kanji_not_known_in_kb_and_sched = set(kanji_not_known_in_kb).difference(
-                kanji_known_in_scheduler
-            )
+            kanji_not_known_in_kb_and_sched = set(
+                kanji_not_known_in_kb
+            ).difference(kanji_known_in_scheduler)
             # If all kanjis are known, trigger add_vocab_for_next_round
             if len(kanji_not_known_in_kb_and_sched) == 0:
                 self.add_vocab_for_next_round(
@@ -473,9 +473,9 @@ class Scheduler:
             only_no_study_date=False,
         )[KANJI_COLNAME].tolist()
         kanji_known_in_scheduler = self.kanji_set_to_add_to_known_df
-        kanji_not_known_in_kb_and_sched = set(kanji_not_known_in_kb).difference(
-            kanji_known_in_scheduler
-        )
+        kanji_not_known_in_kb_and_sched = set(
+            kanji_not_known_in_kb
+        ).difference(kanji_known_in_scheduler)
         if len(kanji_not_known_in_kb_and_sched) != 0:
             raise KanjiNotKnownError(
                 f"Some kanjis in {token} are not known:"
@@ -579,11 +579,13 @@ class Scheduler:
             only_no_study_date=False,
         )[KANJI_COLNAME].tolist()
         kanji_known_in_scheduler = self.kanji_set_to_add_to_known_df
-        kanji_not_known_in_kb_and_sched = set(kanji_not_known_in_kb).difference(
-            kanji_known_in_scheduler
-        )
+        kanji_not_known_in_kb_and_sched = set(
+            kanji_not_known_in_kb
+        ).difference(kanji_known_in_scheduler)
         kanji_added_ls = self.kanji_for_next_round_df[KANJI_COLNAME].tolist()
-        if not set(kanji_not_known_in_kb_and_sched).issubset(set(kanji_added_ls)):
+        if not set(kanji_not_known_in_kb_and_sched).issubset(
+            set(kanji_added_ls)
+        ):
             raise KanjiNotKnownOrAddedError(
                 f"For {token=}, some kanjis are not known, and yet not added to"
                 f" the list of kanjis to learn.\n{kanji_not_known_in_kb_and_sched=}."
@@ -727,12 +729,12 @@ class Scheduler:
         """Write cards and make backup"""
         # Make a copy of db before modifying it
         altered_kb = copy.deepcopy(self.kb)
-        # Check no vocab si in vocab_w_uncertain_status_df
-        if len(self.vocab_w_uncertain_status_df) > 0:
-            raise UncertainVocRemainError(
-                "Items remain on self.vocab_w_uncertain_status_df:"
-                f"\n{self.vocab_w_uncertain_status_df}"
-            )
+        ## Check no vocab si in vocab_w_uncertain_status_df
+        # if len(self.vocab_w_uncertain_status_df) > 0:
+        #    raise UncertainVocRemainError(
+        #        "Items remain on self.vocab_w_uncertain_status_df:"
+        #        f"\n{self.vocab_w_uncertain_status_df}"
+        #    )
         # Make cards
         vocab_cards_df = pd.DataFrame(
             self.make_voc_cards_from_df(
@@ -757,15 +759,17 @@ class Scheduler:
                 source_name=x[SOURCE_NAME_COLNAME],
                 item_colname=TOKEN_COLNAME,
                 table_name=TOKEN_TABLE_NAME,
-            )
+            ),
+            axis=1,
         )
         # Add due date to vocab that has due date
         self.vocab_for_rounds_after_next_df.apply(
             lambda x: altered_kb.set_study_from_date_for_token_source(
-                item_value=x[TOKEN_COLNAME],
+                token_value=x[TOKEN_COLNAME],
                 source_name=x[SOURCE_NAME_COLNAME],
                 date=x[TO_BE_STUDIED_FROM_DATE_COLNAME],
-            )
+            ),
+            axis=1,
         )
         # Mark as known vocab tagged as "to known"
         for token in self.vocab_set_to_add_to_known_df:
@@ -789,7 +793,8 @@ class Scheduler:
                 source_name=x[SOURCE_NAME_COLNAME],
                 item_colname=KANJI_COLNAME,
                 table_name=KANJI_TABLE_NAME,
-            )
+            ),
+            axis=1,
         )
         # Mark as known kanji tagged as "to known"
         for kanji in self.kanji_set_to_add_to_known_df:
@@ -812,11 +817,18 @@ class Scheduler:
             _cards_dirpath,
             now,
         )
+        os.mkdir(out_folder)
         # Write cards to xlsx
         vocab_filepath = os.path.join(out_folder, "vocab.xlsx")
         kanji_filepath = os.path.join(out_folder, "kanji.xlsx")
-        vocab_cards_df.to_excel(vocab_filepath)
-        kanji_cards_df.to_excel(kanji_filepath)
+        vocab_cards_df.to_csv(
+            vocab_filepath,
+            index=False,
+        )
+        kanji_cards_df.to_csv(
+            kanji_filepath,
+            index=False,
+        )
         # Save db with backup
         altered_kb.save_kb(make_backup=True)
         return {

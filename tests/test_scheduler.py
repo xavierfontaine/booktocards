@@ -11,6 +11,7 @@ from booktocards.kb import (
     KANJI_TABLE_NAME,
     TOKEN_COLNAME,
     KANJI_COLNAME,
+    SOURCE_NAME_COLNAME,
     TO_BE_STUDIED_FROM_DATE_COLNAME,
     IS_KNOWN_COLNAME,
     IS_ADDED_TO_ANKI_COLNAME,
@@ -26,6 +27,7 @@ from booktocards.scheduler import (
 )
 from booktocards.tatoeba import ManipulateTatoeba
 from booktocards.jj_dicts import ManipulateSanseido
+
 
 def test_add_voc_with_known_kanjis(monkeypatch, tmp_path):
     # Handle temporary folders
@@ -63,24 +65,7 @@ def test_add_voc_with_known_kanjis(monkeypatch, tmp_path):
     scheduler.add_vocab_for_next_round(token="飲む", source_name=source_name)
     assert len(scheduler.vocab_for_next_round_df) == 1
     # Check that the word was added to the table
-    assert (
-        "飲む" in scheduler.vocab_for_next_round_df[TOKEN_COLNAME].tolist()
-    # Check that the status has been changed in kb
-    )
-    token_df = kb.get_items(
-        table_name=TOKEN_TABLE_NAME,
-        item_value="飲む",
-        item_colname=TOKEN_COLNAME,
-        source_name=source_name,
-        only_not_added=False,
-        only_not_known=False,
-        only_not_suspended=True,
-        max_study_date=None,
-    )
-    assert len(token_df) == 1
-    assert token_df.loc[
-        token_df.index[0], IS_ADDED_TO_ANKI_COLNAME
-    ] == True
+    assert "飲む" in scheduler.vocab_for_next_round_df[TOKEN_COLNAME].tolist()
 
 
 def test_add_voc_with_unknown_kanjis(monkeypatch, tmp_path):
@@ -137,29 +122,12 @@ def test_add_voc_with_unknown_kanjis(monkeypatch, tmp_path):
     # Add kanji to next round, and check when now can
     scheduler.add_kanji_for_next_round(kanji="歌", source_name=source_name)
     with pytest.raises(KanjiNotKnownError):
-        scheduler.add_vocab_for_next_round(
-            token="歌う", source_name=source_name
-        )
+        scheduler.add_vocab_for_next_round(token="歌う", source_name=source_name)
     scheduler.add_vocab_for_rounds_after_next(
         token="歌う", source_name=source_name
     )
     # Check kanji was added to kanji_for_next_round
     assert "歌" in scheduler.kanji_for_next_round_df[KANJI_COLNAME].tolist()
-    # Check the due date for the vocab
-    token_df = scheduler.kb.get_items(
-        table_name=TOKEN_TABLE_NAME,
-        item_value="歌う",
-        item_colname=TOKEN_COLNAME,
-        source_name=source_name,
-        only_not_added=True,
-        only_not_known=True,
-        only_not_suspended=True,
-        max_study_date=None,
-    )
-    assert len(token_df) == 1
-    assert token_df.loc[
-        token_df.index[0], TO_BE_STUDIED_FROM_DATE_COLNAME
-    ] == (scheduler.today + timedelta(min_days_btwn_kanji_and_voc))
     # Check that token was removed from uncertain table
     assert (
         "歌う"
@@ -167,8 +135,19 @@ def test_add_voc_with_unknown_kanjis(monkeypatch, tmp_path):
     )
     # Check that added to vocab for rounds after next
     assert (
-        "歌う" in scheduler.vocab_for_rounds_after_next_df[TOKEN_COLNAME].tolist()
+        "歌う"
+        in scheduler.vocab_for_rounds_after_next_df[TOKEN_COLNAME].tolist()
     )
+    # Check the due date for the vocab
+    vocab_for_rounds_after_next_df = scheduler.vocab_for_rounds_after_next_df
+    token_df = vocab_for_rounds_after_next_df[
+        (vocab_for_rounds_after_next_df[TOKEN_COLNAME] == "歌う")
+        & (vocab_for_rounds_after_next_df[SOURCE_NAME_COLNAME] == source_name)
+    ]
+    assert len(token_df) == 1
+    assert token_df.loc[
+        token_df.index[0], TO_BE_STUDIED_FROM_DATE_COLNAME
+    ] == (scheduler.today + timedelta(min_days_btwn_kanji_and_voc))
 
 
 def test_add_to_much_voc_complains(monkeypatch, tmp_path):
@@ -187,7 +166,8 @@ def test_add_to_much_voc_complains(monkeypatch, tmp_path):
     kb.add_doc(doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False)
     min_days_btwn_kanji_and_voc = 3
     # Add too much voc to vocab of interest
-    scheduler = booktocards.scheduler.Scheduler(kb=kb,
+    scheduler = booktocards.scheduler.Scheduler(
+        kb=kb,
         n_days_study=1,
         n_cards_days=2,
         min_days_btwn_kanji_and_voc=min_days_btwn_kanji_and_voc,
@@ -200,8 +180,9 @@ def test_add_to_much_voc_complains(monkeypatch, tmp_path):
     with pytest.raises(EnoughItemsAddedError):
         scheduler.add_kanji_for_next_round(kanji="歌", source_name=source_name)
     # Mark kanji from vocab_w_uncertain_status_df as known, and add to next round
-    kb.set_item_to_known(item_value="食", item_colname=KANJI_COLNAME,
-            table_name=KANJI_TABLE_NAME)
+    kb.set_item_to_known(
+        item_value="食", item_colname=KANJI_COLNAME, table_name=KANJI_TABLE_NAME
+    )
     scheduler.add_vocab_for_next_round(token="食べる", source_name=source_name)
     # Incidental: check vocab was removed from unertain df
     assert (
@@ -209,8 +190,9 @@ def test_add_to_much_voc_complains(monkeypatch, tmp_path):
         not in scheduler.vocab_w_uncertain_status_df[TOKEN_COLNAME].tolist()
     )
     # Mark other kanji as known, and try to add to next round
-    scheduler.kb.set_item_to_known(item_value="歌", item_colname=KANJI_COLNAME,
-            table_name=KANJI_TABLE_NAME)
+    scheduler.kb.set_item_to_known(
+        item_value="歌", item_colname=KANJI_COLNAME, table_name=KANJI_TABLE_NAME
+    )
     with pytest.raises(EnoughItemsAddedError):
         scheduler.add_vocab_for_next_round(
             token="歌う",
@@ -218,7 +200,120 @@ def test_add_to_much_voc_complains(monkeypatch, tmp_path):
         )
 
 
-#def test_make_cards(monkeypatch, tmp_path):
+def test_get_studiable_voc(monkeypatch, tmp_path):
+    # Handle temporary folders
+    path = tmp_path.resolve()
+    path_cards = os.path.join(path, "cards")
+    path_kb = os.path.join(path, "kb")
+    os.mkdir(path_cards)
+    os.mkdir(path_kb)
+    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path_kb)
+    monkeypatch.setattr(booktocards.scheduler, "_cards_dirpath", path_cards)
+    # Init kb and scheduler
+    kb = booktocards.kb.KnowledgeBase()
+    min_days_btwn_kanji_and_voc = 3
+    scheduler = booktocards.scheduler.Scheduler(
+        kb=kb,
+        n_days_study=2,
+        n_cards_days=2,
+        min_days_btwn_kanji_and_voc=min_days_btwn_kanji_and_voc,
+    )
+    # Prepare doc
+    doc = "食べる飲む歌う。歌う。感じる。笑う。寝る。"
+    source_name = "test_doc"
+    kb.add_doc(doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False)
+    # Get all voc as studiable
+    studiable_voc_df = scheduler.get_studiable_voc()
+    assert len(studiable_voc_df) == 6
+    # Add one to known
+    kb.set_item_to_known(
+        item_value="食べる",
+        item_colname=TOKEN_COLNAME,
+        table_name=TOKEN_TABLE_NAME,
+    )
+    studiable_voc_df = scheduler.get_studiable_voc()
+    assert len(studiable_voc_df) == 5
+    # Add one to of interest
+    scheduler.add_vocab_of_interest(token="飲む", source_name=source_name)
+    studiable_voc_df = scheduler.get_studiable_voc()
+    assert len(studiable_voc_df) == 4
+    # Add one to next round from of interest
+    kb.set_item_to_known(
+        item_value="飲",
+        item_colname=KANJI_COLNAME,
+        table_name=KANJI_TABLE_NAME,
+    )
+    scheduler.add_vocab_for_next_round(token="飲む", source_name=source_name)
+    studiable_voc_df = scheduler.get_studiable_voc()
+    assert len(studiable_voc_df) == 4
+    # Add one for round after next
+    scheduler.add_vocab_of_interest(token="感じる", source_name=source_name)
+    scheduler.add_kanji_for_next_round(kanji="感", source_name=source_name)
+    scheduler.add_vocab_for_rounds_after_next(
+        token="感じる", source_name=source_name
+    )
+    studiable_voc_df = scheduler.get_studiable_voc()
+    assert len(studiable_voc_df) == 3
+    # Add one to be set to known
+    scheduler.set_vocab_to_add_to_known(token="歌う")
+    studiable_voc_df = scheduler.get_studiable_voc()
+    assert len(studiable_voc_df) == 2
+    # Add one to be set to suspended
+    scheduler.set_vocab_to_add_to_suspended(
+        token="笑う", source_name=source_name
+    )
+    studiable_voc_df = scheduler.get_studiable_voc()
+    assert len(studiable_voc_df) == 1
+
+
+def test_get_studiable_kanji(monkeypatch, tmp_path):
+    # Handle temporary folders
+    path = tmp_path.resolve()
+    path_cards = os.path.join(path, "cards")
+    path_kb = os.path.join(path, "kb")
+    os.mkdir(path_cards)
+    os.mkdir(path_kb)
+    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path_kb)
+    monkeypatch.setattr(booktocards.scheduler, "_cards_dirpath", path_cards)
+    # Init kb and scheduler
+    kb = booktocards.kb.KnowledgeBase()
+    min_days_btwn_kanji_and_voc = 3
+    scheduler = booktocards.scheduler.Scheduler(
+        kb=kb,
+        n_days_study=2,
+        n_cards_days=2,
+        min_days_btwn_kanji_and_voc=min_days_btwn_kanji_and_voc,
+    )
+    # Prepare doc
+    doc = "食べる飲む歌う。歌う。感じる。笑う。寝る。"
+    source_name = "test_doc"
+    kb.add_doc(doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False)
+    # Get all kanji as studiable
+    studiable_kanji_df = scheduler.get_studiable_kanji()
+    assert len(studiable_kanji_df) == 6
+    # Add one to known
+    kb.set_item_to_known(
+        item_value="食",
+        item_colname=KANJI_COLNAME,
+        table_name=KANJI_TABLE_NAME,
+    )
+    studiable_kanji_df = scheduler.get_studiable_kanji()
+    assert len(studiable_kanji_df) == 5
+    # Add one to next round
+    scheduler.add_kanji_for_next_round(kanji="飲", source_name=source_name)
+    studiable_kanji_df = scheduler.get_studiable_kanji()
+    assert len(studiable_kanji_df) == 4
+    # Add one to be set to known
+    scheduler.set_kanji_to_add_to_known(kanji="歌")
+    studiable_kanji_df = scheduler.get_studiable_kanji()
+    assert len(studiable_kanji_df) == 3
+    # Add one to be set to supsended
+    scheduler.set_kanji_to_add_to_suspended(kanji="感", source_name=source_name)
+    studiable_kanji_df = scheduler.get_studiable_kanji()
+    assert len(studiable_kanji_df) == 2
+
+
+# def test_make_cards(monkeypatch, tmp_path):
 #    # Handle temporary folders
 #    path = tmp_path.resolve()
 #    path_cards = os.path.join(path, "cards")

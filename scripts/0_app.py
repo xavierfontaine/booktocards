@@ -37,7 +37,8 @@ def make_ag(df: pd.DataFrame) -> AgGridReturn:
     """Make an ag grid from a DataFrame"""
     grid_option_builder = GridOptionsBuilder.from_dataframe(df)
     grid_option_builder.configure_selection(
-        selection_mode="multiple", use_checkbox=True, 
+        selection_mode="multiple",
+        use_checkbox=True,
     )
     grid_options = grid_option_builder.build()
     ag_obj = AgGrid(
@@ -255,7 +256,9 @@ if st.button("Use these settings for study"):
         kb=kb,
         n_days_study=st.session_state["n_days_study"],
         n_cards_days=st.session_state["n_cards_days"],
-        min_days_btwn_kanji_and_voc=st.session_state["min_days_btwn_kanji_and_voc"],
+        min_days_btwn_kanji_and_voc=st.session_state[
+            "min_days_btwn_kanji_and_voc"
+        ],
     )
 
 
@@ -269,7 +272,9 @@ if "scheduler" not in st.session_state:
         kb=kb,
         n_days_study=st.session_state["n_days_study"],
         n_cards_days=st.session_state["n_cards_days"],
-        min_days_btwn_kanji_and_voc=st.session_state["min_days_btwn_kanji_and_voc"],
+        min_days_btwn_kanji_and_voc=st.session_state[
+            "min_days_btwn_kanji_and_voc"
+        ],
     )
 scheduler: Scheduler = st.session_state["scheduler"]
 # Chose doc name
@@ -278,29 +283,29 @@ doc_name = st.selectbox(
 )
 
 # Display studiable items
-if len(scheduler.vocab_w_uncertain_status_df) == 0:
+if len(scheduler.vocab_w_uncertain_status_df) == 0:  # TODO: if still items to
+    # add (else can only end scheduler)
     # Allow to mark as known or suspended
     st.subheader("Manage vocabulary")
     if st.button("Mark vocab as known", key="button_voc_known"):
-        for token, source_name in st.session_state["selected_tok_src_cples"] :
+        for token, source_name in st.session_state["selected_tok_src_cples"]:
             kb.set_item_to_known(
                 item_value=token,
                 item_colname=TOKEN_COLNAME,
-                table_name=TOKEN_TABLE_NAME
+                table_name=TOKEN_TABLE_NAME,
             )
     if st.button("Mark vocab as suspended", key="button_voc_suspended"):
-        for token, source_name in st.session_state["selected_tok_src_cples"] :
+        for token, source_name in st.session_state["selected_tok_src_cples"]:
             kb.set_item_to_suspended_for_source(
                 item_value=token,
                 source_name=source_name,
                 item_colname=TOKEN_COLNAME,
-                table_name=TOKEN_TABLE_NAME
+                table_name=TOKEN_TABLE_NAME,
             )
     if st.button("Add to study list", key="button_voc_for_study"):
-        for token, source_name in st.session_state["selected_tok_src_cples"] :
+        for token, source_name in st.session_state["selected_tok_src_cples"]:
             scheduler.add_vocab_of_interest(
-                token=token,
-                source_name=source_name
+                token=token, source_name=source_name
             )
     # Show studiable items
     studiable_tokens_df = kb.get_items(
@@ -309,12 +314,16 @@ if len(scheduler.vocab_w_uncertain_status_df) == 0:
         only_not_known=True,
         only_not_suspended=True,
         source_name=doc_name,
-        )[:20]
-    studiable_tokens_df = studiable_tokens_df.sort_values(by=[COUNT_COLNAME],
-            ascending=False)
+    )[:20]
+    studiable_tokens_df = studiable_tokens_df.sort_values(
+        by=[COUNT_COLNAME], ascending=False
+    )
     studiable_tokens_ag = make_ag(df=studiable_tokens_df)
-    st.session_state["selected_tok_src_cples"] = extract_item_and_source_from_ag(
-        ag_grid_output=studiable_tokens_ag, item_colname=TOKEN_COLNAME,
+    st.session_state[
+        "selected_tok_src_cples"
+    ] = extract_item_and_source_from_ag(
+        ag_grid_output=studiable_tokens_ag,
+        item_colname=TOKEN_COLNAME,
     )
 # If must check kanjis are not known, prompt the user to confirm
 else:
@@ -323,14 +332,12 @@ else:
     if st.button("Mark kanji as known", key="button_kanji_known"):
         for kanji, source_name in st.session_state["selected_kanji_src_cples"]:
             scheduler.add_kanji_for_next_round(
-                kanji=kanji,
-                source_name=source_name
+                kanji=kanji, source_name=source_name
             )
     if st.button("Add to study list", key="button_kanji_for_study"):
         for kanji, source_name in st.session_state["selected_kanji_src_cples"]:
             scheduler.add_kanji_for_next_round(
-                kanji=kanji,
-                source_name=source_name
+                kanji=kanji, source_name=source_name
             )
     kanjis_sources_to_check_df = scheduler.get_kanjis_sources_from_token_df(
         token_df=scheduler.vocab_w_uncertain_status_df,
@@ -339,23 +346,28 @@ else:
         only_not_suspended=True,
     )
     kanjis_sources_to_check_ag = make_ag(df=kanjis_sources_to_check_df)
-    st.session_state["selected_kanji_src_cples"] = extract_item_and_source_from_ag(
+    st.session_state[
+        "selected_kanji_src_cples"
+    ] = extract_item_and_source_from_ag(
         ag_grid_output=kanjis_sources_to_check_ag,
         item_colname=KANJI_COLNAME,
     )
     # When all kanjis have been dealt with, try to add to next round, else to
     # rounds after
     if len(kanjis_sources_to_check_df) == 0:
-        for token, source_name in scheduler.vocab_w_uncertain_status_df[[TOKEN_COLNAME,
-                SOURCE_NAME_COLNAME]].values:
+        for token, source_name in scheduler.vocab_w_uncertain_status_df[
+            [TOKEN_COLNAME, SOURCE_NAME_COLNAME]
+        ].values:
             try:
                 # TODO : corriger, puisqu'en l'état ça sera tjrs ajouté (car
                 # kanji marqué comme known plutôt que comme added)
-                scheduler.add_vocab_for_next_round(token=token,
-                        source_name=source_name)
+                scheduler.add_vocab_for_next_round(
+                    token=token, source_name=source_name
+                )
             except KanjiNotKnownError:
-                scheduler.add_vocab_for_rounds_after_next(token=token,
-                        source_name=source_name)
+                scheduler.add_vocab_for_rounds_after_next(
+                    token=token, source_name=source_name
+                )
 
 
 st.write("Vocab for next round")

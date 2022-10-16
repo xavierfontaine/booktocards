@@ -240,6 +240,21 @@ def test_get_items_works(monkeypatch, tmp_path):
     doc = "食べる飲む"
     doc_name = "test_doc"
     kb.add_doc(doc=doc, doc_name=doc_name, drop_ascii_alphanum_toks=False)
+    # Get all tokens
+    exp_out = ["食べる", "飲む"]
+    items = kb.get_items(
+        table_name=TOKEN_TABLE_NAME,
+        only_not_added=True,
+        only_not_known=True,
+        only_not_suspended=True,
+        only_no_study_date=True,
+        item_value=None,
+        source_name=None,
+        item_colname=None,
+        max_study_date=None,
+    )
+    obs_out = items[TOKEN_COLNAME].tolist()
+    assert sorted(exp_out) == sorted(obs_out)
     # Set 飲む as known
     kb.set_item_to_added_to_anki(
         item_value="飲む",
@@ -267,6 +282,7 @@ def test_get_items_works(monkeypatch, tmp_path):
         only_not_added=False,
         only_not_known=False,
         only_not_suspended=False,
+        only_no_study_date=False,
         item_value=None,
         source_name=None,
         item_colname=None,
@@ -281,6 +297,22 @@ def test_get_items_works(monkeypatch, tmp_path):
         only_not_added=True,
         only_not_known=True,
         only_not_suspended=True,
+        only_no_study_date=False,
+        item_value=None,
+        source_name=None,
+        item_colname=None,
+        max_study_date=None,
+    )
+    obs_out = items[TOKEN_COLNAME].tolist()
+    assert sorted(exp_out) == sorted(obs_out)
+    # Get all token without study date
+    exp_out = ["飲む"]
+    items = kb.get_items(
+        table_name=TOKEN_TABLE_NAME,
+        only_not_added=False,
+        only_not_known=False,
+        only_not_suspended=False,
+        only_no_study_date=True,
         item_value=None,
         source_name=None,
         item_colname=None,
@@ -295,6 +327,7 @@ def test_get_items_works(monkeypatch, tmp_path):
         only_not_added=True,
         only_not_known=True,
         only_not_suspended=True,
+        only_no_study_date=True,
         item_value=None,
         source_name=None,
         item_colname=None,
@@ -309,6 +342,7 @@ def test_get_items_works(monkeypatch, tmp_path):
         only_not_added=False,
         only_not_known=False,
         only_not_suspended=False,
+        only_no_study_date=False,
         item_value=exp_out[0],
         source_name=doc_name,
         item_colname=TOKEN_COLNAME,
@@ -323,6 +357,7 @@ def test_get_items_works(monkeypatch, tmp_path):
         only_not_added=False,
         only_not_known=False,
         only_not_suspended=False,
+        only_no_study_date=False,
         item_value=exp_out[0],
         source_name=doc_name,
         item_colname=KANJI_COLNAME,
@@ -336,6 +371,7 @@ def test_get_items_works(monkeypatch, tmp_path):
         only_not_added=False,
         only_not_known=False,
         only_not_suspended=False,
+        only_no_study_date=False,
         item_value="鳥",
         source_name=doc_name,
         item_colname=TOKEN_COLNAME,
@@ -350,6 +386,7 @@ def test_get_items_works(monkeypatch, tmp_path):
         only_not_added=False,
         only_not_known=False,
         only_not_suspended=False,
+        only_no_study_date=False,
         item_value="食べる",
         source_name=doc_name,
         item_colname=TOKEN_COLNAME,
@@ -364,6 +401,7 @@ def test_get_items_works(monkeypatch, tmp_path):
         only_not_added=False,
         only_not_known=False,
         only_not_suspended=False,
+        only_no_study_date=False,
         item_value="食べる",
         source_name=doc_name,
         item_colname=TOKEN_COLNAME,

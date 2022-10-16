@@ -531,6 +531,7 @@ class KnowledgeBase:
         only_not_added: bool,
         only_not_known: bool,
         only_not_suspended: bool,
+        only_no_study_date: bool,
         item_value: Optional[str] = None,
         item_colname: Optional[ColName] = None,
         source_name: Optional[str] = None,
@@ -549,6 +550,8 @@ class KnowledgeBase:
                 IS_KNOWN_COLNAME (all False or NA.)
             only_not_added (bool): retrieve only those items with no True in
                 IS_SUPSENDED_FOR_SOURCE_COLNAME.
+            only_not_added (bool): only with no study date specified in
+                TO_BE_STUDIED_FROM_DATE_COLNAME
             item_value (Optional[str]): value of the item. `item_colname` must
                 be set.
             item_colname (Optional[ColName]): name of the column in which to
@@ -561,6 +564,10 @@ class KnowledgeBase:
             pd.DataFrame:
         """
         df = self.__dict__[table_name]
+        # Sanity
+        if only_no_study_date and max_study_date is not None:
+            raise ValueError(f"{only_no_study_date=} but {max_study_date=}")
+        # Identify rows
         is_items_rows = pd.Series(
             [True for _ in range(len(df))], index=df.index
         )
@@ -586,14 +593,26 @@ class KnowledgeBase:
             is_items_rows = is_items_rows & (
                 df[IS_SUPSENDED_FOR_SOURCE_COLNAME] == False
             )
-        if max_study_date:
+        if only_no_study_date:
+            # No study date on kanji
+            if table_name == KANJI_TABLE_NAME:
+                pass
+            else:
+                is_items_rows = is_items_rows & (
+                    df[TO_BE_STUDIED_FROM_DATE_COLNAME].isnull()
+                )
+        if max_study_date is not None:
             if table_name == KANJI_TABLE_NAME:
                 raise ValueError(
                     "`last_study_day` was provided but is not relevant to"
                     " kanjis"
                 )
-            is_before_max_and_not_null = df.loc[is_items_rows, TO_BE_STUDIED_FROM_DATE_COLNAME].apply(
-                lambda x : False if type(x) is not datetime.date else x <= max_study_date
+            is_before_max_and_not_null = df.loc[
+                is_items_rows, TO_BE_STUDIED_FROM_DATE_COLNAME
+            ].apply(
+                lambda x: False
+                if type(x) is not datetime.date
+                else x <= max_study_date
             )
             is_items_rows = is_items_rows & is_before_max_and_not_null
         return df[is_items_rows]

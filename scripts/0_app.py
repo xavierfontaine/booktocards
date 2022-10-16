@@ -27,6 +27,7 @@ from booktocards.kb import (
     COUNT_COLNAME,
     TO_BE_STUDIED_FROM_DATE_COLNAME,
 )
+from booktocards.scheduler import Scheduler, KanjiNotKnownError
 
 
 # =========
@@ -36,11 +37,12 @@ def make_ag(df: pd.DataFrame) -> AgGridReturn:
     """Make an ag grid from a DataFrame"""
     grid_option_builder = GridOptionsBuilder.from_dataframe(df)
     grid_option_builder.configure_selection(
-        selection_mode="multiple", use_checkbox=True
+        selection_mode="multiple", use_checkbox=True, 
     )
     grid_options = grid_option_builder.build()
     ag_obj = AgGrid(
         df,
+        enable_enterprise_modules=False,
         gridOptions=grid_options,
     )
     return ag_obj
@@ -74,8 +76,6 @@ def get_voc_df_w_date_until(max_date: date, session_state):
 # =========
 # Constants
 # =========
-# Study parameters
-TIME_BTWN_KANJ_AND_TOK = 22  # after adding kanji, time before adding voc
 # Parameters for card creation
 MAX_SOURCE_EX = 3
 MAX_TATOEBA_EX = 3
@@ -98,6 +98,8 @@ if "deepl_translator" not in st.session_state:
     st.session_state["deepl_translator"] = deepl.Translator(
         io.get_secrets()[SECRETS_DEEPL_KEY_KEY]
     )
+if "study_options_are_set" not in st.session_state:
+    st.session_state["study_options_are_set"] = False
 for df_name in [
     "to_add_tok_df",  # "to_mark_as_known_tok_df", "to_suspend_tok_df",
     "to_add_kanji_df",  # "to_mark_as_known_kanji_df", "to_suspend_kanji_df",
@@ -191,6 +193,7 @@ else:
         kb.add_doc(
             doc=uploaded_text, doc_name=doc_name, drop_ascii_alphanum_toks=True
         )
+        kb.save_kb(make_backup=True)
         st.info("Document added. Reload page.")
 # Remove doc
 st.subheader("Remove a document")
@@ -205,25 +208,25 @@ if st.button("Remove document"):
 # ============
 # Define study
 # ============
-st.header("Tokens for study/known")
-# Study settings
-st.subheader("Study settings")
-n_days = int(
+st.header("Study settings")
+n_days_study = int(
     st.slider(
         label="How many days of study?",
         min_value=1,
         max_value=30,
         value=7,
         step=1,
+        key="n_days_study",
     )
 )
-n_lessons_day = int(
+n_cards_days = int(
     st.slider(
         label="How many new cards a day?",
         min_value=1,
         max_value=30,
         value=6,
         step=1,
+        key="n_cards_days",
     )
 )
 min_count = int(
@@ -233,138 +236,133 @@ min_count = int(
         max_value=30,
         value=4,
         step=1,
+        key="min_count",
     )
 )
-min_interval_kanji_voc = int(
+min_days_btwn_kanji_and_voc = int(
     st.slider(
         label="What is the smallest interval between added a kanji and a related token?",
         min_value=1,
         max_value=30,
         value=22,
         step=1,
+        key="min_days_btwn_kanji_and_voc",
     )
 )
+
+if st.button("Use these settings for study"):
+    st.session_state["scheduler"] = Scheduler(
+        kb=kb,
+        n_days_study=st.session_state["n_days_study"],
+        n_cards_days=st.session_state["n_cards_days"],
+        min_days_btwn_kanji_and_voc=st.session_state["min_days_btwn_kanji_and_voc"],
+    )
 
 
 # ================
-# Infer study span
+# Schedule studies
 # ================
-# Nmber of cards to study
-num_cards_to_study = n_days * n_lessons_day
-# Until when to study?
-today = date.today()
-last_day_study = today + timedelta(days=n_days)
-# If add a knaji, how to long to wait before adding token?
-earliest_study_postponed_voc = today + timedelta(days=TIME_BTWN_KANJ_AND_TOK)
-
-
-# ===================================
-# Mandatory cards from previous study
-# ===================================
-st.subheader("Mandatory cards from previous study")
-# Get waiting in queue
-vocs_to_add_before_date_df = get_voc_df_w_date_until(
-    max_date=last_day_study,
-    session_state=st.session_state,
+st.header("Add study material")
+# Get scheduler (init if needed)
+if "scheduler" not in st.session_state:
+    st.session_state["scheduler"] = Scheduler(
+        kb=kb,
+        n_days_study=st.session_state["n_days_study"],
+        n_cards_days=st.session_state["n_cards_days"],
+        min_days_btwn_kanji_and_voc=st.session_state["min_days_btwn_kanji_and_voc"],
+    )
+scheduler: Scheduler = st.session_state["scheduler"]
+# Chose doc name
+doc_name = st.selectbox(
+    label="Document name", options=document_names, key="doc_for_scheduling"
 )
-vocs_to_add_before_date_df = vocs_to_add_before_date_df.iloc[
-    : min(vocs_to_add_before_date_df.shape[0], num_cards_to_study), :
-]
-# Extract cards
-mandatory_cards_to_add_df = pd.DataFrame(
-    make_voc_cards_from_df(
-        token_df=vocs_to_add_before_date_df,
-        translate_source_ex=False,
-        session_state=st.session_state,
-    )
-)
-st.write("Cards that will be added from previous selection:")
-st.write(mandatory_cards_to_add_df)
 
-
-# =============
-# Show selected
-# =============
-# kb[TOKEN_TABLE_NAME].loc[10, TO_BE_STUDIED_FROM_DATE_COLNAME] = last_day_study
-# kb._save_kb()
-# Get tokens that have already been added
-st.subheader("Items that will be added")
-st.write("Tokens")
-st.dataframe(
-    pd.concat(
-        [
-            mandatory_cards_to_add_df,
-            st.session_state["to_add_tok_df"],
-        ]
+# Display studiable items
+if len(scheduler.vocab_w_uncertain_status_df) == 0:
+    # Allow to mark as known or suspended
+    st.subheader("Manage vocabulary")
+    if st.button("Mark vocab as known", key="button_voc_known"):
+        for token, source_name in st.session_state["selected_tok_src_cples"] :
+            kb.set_item_to_known(
+                item_value=token,
+                item_colname=TOKEN_COLNAME,
+                table_name=TOKEN_TABLE_NAME
+            )
+    if st.button("Mark vocab as suspended", key="button_voc_suspended"):
+        for token, source_name in st.session_state["selected_tok_src_cples"] :
+            kb.set_item_to_suspended_for_source(
+                item_value=token,
+                source_name=source_name,
+                item_colname=TOKEN_COLNAME,
+                table_name=TOKEN_TABLE_NAME
+            )
+    if st.button("Add to study list", key="button_voc_for_study"):
+        for token, source_name in st.session_state["selected_tok_src_cples"] :
+            scheduler.add_vocab_of_interest(
+                token=token,
+                source_name=source_name
+            )
+    # Show studiable items
+    studiable_tokens_df = kb.get_items(
+        table_name=TOKEN_TABLE_NAME,
+        only_not_added=True,
+        only_not_known=True,
+        only_not_suspended=True,
+        source_name=doc_name,
+        )[:20]
+    studiable_tokens_df = studiable_tokens_df.sort_values(by=[COUNT_COLNAME],
+            ascending=False)
+    studiable_tokens_ag = make_ag(df=studiable_tokens_df)
+    st.session_state["selected_tok_src_cples"] = extract_item_and_source_from_ag(
+        ag_grid_output=studiable_tokens_ag, item_colname=TOKEN_COLNAME,
     )
-)
-st.write("Kanjis")
-st.dataframe(st.session_state["to_add_kanji_df"])
-
-
-# =====================
-# Check kanji are known
-# =====================
-st.subheader("Confirm kanji knowledge")
-if len(st.session_state["to_add_tok_df"]) != 0:
-    kanjis_cards_from_tokens = make_kanji_cards_from_df(
-        df=get_kanjis_sources_from_token_df(
-            token_df=st.session_state["to_add_tok_df"],
-            session_state=st.session_state,
-            kanji_colname=KANJI_CARD_KANJI_ATTR_NAME,
-            source_name_colname=KANJI_CARD_SOURCE_ATTR_NAME,
-        ),
-        session_state=st.session_state,
-    )
-    ag_obj = make_ag(df=pd.DataFrame(kanjis_cards_from_tokens))
-    selected_kanji_source_cples = extract_item_and_source_from_ag(
-        ag_grid_output=ag_obj, item_colname=KANJI_COLNAME
-    )
-    st.write(f"Selected kanjis: {selected_kanji_source_cples}")
+# If must check kanjis are not known, prompt the user to confirm
 else:
-    st.info("No token in the adding queue for now.")
-# TODO: dans kb, mettre un accès filtré aux datasets selon is in anki etc., de
-# telle sorte que je peux réutiliser ça partout.
-
-# TODO: mettre en place le mécanisme d'ajout et de sélection
-# TODO: bloquer si l'utilisateur n'a pas ajouté/marqué comme connus/suspendus
-# tous les kanjis
-
-
-# =============
-# Select tokens
-# =============
-# Ask whether kanji inside are known or not. If not, add to list of kanji to be
-# studied, and make token to be studied in the future
-# TODO
-# Calculate the number of tokens we still need to pull, and ask user to pull
-# that
-# TODO
-# Select source
-# TODO
-# Pre-make cards (no deepl translation)
-# TODO
-# Show cards
-# TODO
-# When seletcted, user can either mark as known, or add to previous df.
-# If already enough tokens, raise error
-# TODO
-# Should only be cards that have no due date + other conditions
-df = token_df[: (n_days * n_lessons_day)]
-ag_obj = make_ag(df=df)
-selected_tok_source_cples = extract_item_and_source_from_ag(
-    ag_grid_output=ag_obj,
-    item_colname=TOKEN_COLNAME,
-)
-st.write(f"Selected token: {selected_tok_source_cples}")
-# Write the files somewhere, and *then* mark items as known.
-# Download should be made from where the files have been written.
-# TODO
-# Make a save of kb somewhere (backup)
-# TODO
+    st.subheader("Manage kanjis for added vocabulary")
+    # Get kanjis whose status must be confirmed
+    if st.button("Mark kanji as known", key="button_kanji_known"):
+        for kanji, source_name in st.session_state["selected_kanji_src_cples"]:
+            scheduler.add_kanji_for_next_round(
+                kanji=kanji,
+                source_name=source_name
+            )
+    if st.button("Add to study list", key="button_kanji_for_study"):
+        for kanji, source_name in st.session_state["selected_kanji_src_cples"]:
+            scheduler.add_kanji_for_next_round(
+                kanji=kanji,
+                source_name=source_name
+            )
+    kanjis_sources_to_check_df = scheduler.get_kanjis_sources_from_token_df(
+        token_df=scheduler.vocab_w_uncertain_status_df,
+        only_not_added=True,
+        only_not_known=True,
+        only_not_suspended=True,
+    )
+    kanjis_sources_to_check_ag = make_ag(df=kanjis_sources_to_check_df)
+    st.session_state["selected_kanji_src_cples"] = extract_item_and_source_from_ag(
+        ag_grid_output=kanjis_sources_to_check_ag,
+        item_colname=KANJI_COLNAME,
+    )
+    # When all kanjis have been dealt with, try to add to next round, else to
+    # rounds after
+    if len(kanjis_sources_to_check_df) == 0:
+        for token, source_name in scheduler.vocab_w_uncertain_status_df[[TOKEN_COLNAME,
+                SOURCE_NAME_COLNAME]].values:
+            try:
+                # TODO : corriger, puisqu'en l'état ça sera tjrs ajouté (car
+                # kanji marqué comme known plutôt que comme added)
+                scheduler.add_vocab_for_next_round(token=token,
+                        source_name=source_name)
+            except KanjiNotKnownError:
+                scheduler.add_vocab_for_rounds_after_next(token=token,
+                        source_name=source_name)
 
 
-# ===============
-# Mark as unknown
-# ===============
-# TODO: find something supposedly known and make it unknown
+st.write("Vocab for next round")
+st.dataframe(scheduler.vocab_for_next_round_df)
+st.write("Kanji for next round")
+st.dataframe(scheduler.kanji_for_next_round_df)
+st.write("Vocab for rounds after next")
+st.dataframe(scheduler.vocab_for_rounds_after_next_df)
+st.write("Vocab with uncertain status")
+st.dataframe(scheduler.vocab_w_uncertain_status_df)

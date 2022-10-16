@@ -35,10 +35,13 @@ def test_files_are_created_and_reloaded(monkeypatch, tmp_path):
     # Check 3 files and one folder have been created
     kb = booktocards.kb.KnowledgeBase()
     assert len(os.listdir(path)) == 4
+    # Check that only one of these are a folder
+    assert len(next(os.walk(path))[1]) == 1
     # Inside the folder, checjk 3 files have been created
+    backup_dirname = next(os.walk(path))[1][0]
     backup_path = os.path.join(
         path,
-        str(datetime.date.today()),
+        backup_dirname,
     )
     assert len(os.listdir(backup_path)) == 3
     # Check that tables are empty df
@@ -46,18 +49,18 @@ def test_files_are_created_and_reloaded(monkeypatch, tmp_path):
         assert isinstance(kb.__dict__[table_name], pd.DataFrame)
         assert kb.__dict__[table_name].shape[0] == 0
     # Add a doc and check everything has been added
-    doc = "食べる吐く"
+    doc = "食べる飲む"
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
     assert kb.__dict__[TOKEN_TABLE_NAME].shape[0] == 2
     assert "食べる" in kb.__dict__[TOKEN_TABLE_NAME][TOKEN_COLNAME].to_list()
-    assert "吐く" in kb.__dict__[TOKEN_TABLE_NAME][TOKEN_COLNAME].to_list()
+    assert "飲む" in kb.__dict__[TOKEN_TABLE_NAME][TOKEN_COLNAME].to_list()
     assert kb.__dict__[KANJI_TABLE_NAME].shape[0] == 2
     assert "食" in kb.__dict__[KANJI_TABLE_NAME][KANJI_COLNAME].to_list()
     assert sorted(
         kb.__dict__[KANJI_TABLE_NAME][
             ASSOCIATED_TOKS_FROM_SOURCE_COLNAME
         ].to_list()
-    ) == sorted([["食べる"], ["吐く"]])
+    ) == sorted([["食べる"], ["飲む"]])
     assert kb.__dict__[SEQ_TABLE_NAME].shape[0] == 1
     # Save, reload and check everything is still here
     kb.save_kb()
@@ -73,7 +76,7 @@ def test_error_when_adding_again_a_doc(monkeypatch, tmp_path):
     monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Add doc
     kb = booktocards.kb.KnowledgeBase()
-    doc = "食べる吐く"
+    doc = "食べる飲む"
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
     # Adding again should fail
     with pytest.raises(ValueError):
@@ -88,7 +91,7 @@ def test_remove_doc_works(monkeypatch, tmp_path):
     monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Add doc
     kb = booktocards.kb.KnowledgeBase()
-    doc = "食べる吐く"
+    doc = "食べる飲む"
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
     # Remove the doc
     kb.remove_doc(doc_name="test_doc")
@@ -106,7 +109,7 @@ def test_set_to_known_works(monkeypatch, tmp_path):
     monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Add doc
     kb = booktocards.kb.KnowledgeBase()
-    doc = "食べる吐く"
+    doc = "食べる飲む"
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
     # Add a 2nd doc (the same)
     kb.add_doc(doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False)
@@ -131,7 +134,7 @@ def test_automatically_set_known_for_new_doc(monkeypatch, tmp_path):
     monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Add doc
     kb = booktocards.kb.KnowledgeBase()
-    doc = "食べる吐く"
+    doc = "食べる飲む"
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
     # Set to known
     kb.set_item_to_known(
@@ -152,21 +155,20 @@ def test_set_added_to_anki_works(monkeypatch, tmp_path):
     monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Add doc
     kb = booktocards.kb.KnowledgeBase()
-    doc = "食べる吐く"
+    doc = "食べる飲む"
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
     # Add a 2nd doc (the same)
     kb.add_doc(doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False)
     # Make sure that all is false
     assert kb.__dict__[TOKEN_TABLE_NAME][IS_ADDED_TO_ANKI_COLNAME].sum() == 0
     # Check what happens if set to known and added to Anki
-    kb.set_item_to_known_and_added_to_anki(
+    kb.set_item_to_added_to_anki(
         item_value="食べる",
         source_name="test_doc2",
         item_colname=TOKEN_COLNAME,
         table_name=TOKEN_TABLE_NAME,
     )
     assert kb.__dict__[TOKEN_TABLE_NAME][IS_ADDED_TO_ANKI_COLNAME].sum() == 1
-    assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 1
     # Check this is still here after saving/reloading
     kb.save_kb()
     kb = booktocards.kb.KnowledgeBase()
@@ -179,7 +181,7 @@ def test_set_is_suspended_for_source_works(monkeypatch, tmp_path):
     monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Add doc
     kb = booktocards.kb.KnowledgeBase()
-    doc = "食べる吐く"
+    doc = "食べる飲む"
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
     # Add a 2nd doc (the same)
     kb.add_doc(doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False)
@@ -235,12 +237,12 @@ def test_get_items_works(monkeypatch, tmp_path):
     monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Initialize kb and add doc
     kb = booktocards.kb.KnowledgeBase()
-    doc = "食べる吐く"
+    doc = "食べる飲む"
     doc_name = "test_doc"
     kb.add_doc(doc=doc, doc_name=doc_name, drop_ascii_alphanum_toks=False)
-    # Set 吐く as known
-    kb.set_item_to_known_and_added_to_anki(
-        item_value="吐く",
+    # Set 飲む as known
+    kb.set_item_to_added_to_anki(
+        item_value="飲む",
         source_name=doc_name,
         item_colname=TOKEN_COLNAME,
         table_name=TOKEN_TABLE_NAME,
@@ -259,7 +261,7 @@ def test_get_items_works(monkeypatch, tmp_path):
         date=today,
     )
     # Get all tokens
-    exp_out = ["食べる", "吐く"]
+    exp_out = ["食べる", "飲む"]
     items = kb.get_items(
         table_name=TOKEN_TABLE_NAME,
         only_not_added=False,
@@ -287,7 +289,7 @@ def test_get_items_works(monkeypatch, tmp_path):
     obs_out = items[TOKEN_COLNAME].tolist()
     assert sorted(exp_out) == sorted(obs_out)
     # Get all kanji not added/known/suspended
-    exp_out = ["吐"]
+    exp_out = ["飲"]
     items = kb.get_items(
         table_name=KANJI_TABLE_NAME,
         only_not_added=True,
@@ -315,7 +317,7 @@ def test_get_items_works(monkeypatch, tmp_path):
     obs_out = items[TOKEN_COLNAME].tolist()
     assert sorted(exp_out) == sorted(obs_out)
     # Get specific kanji
-    exp_out = ["吐"]
+    exp_out = ["飲"]
     items = kb.get_items(
         table_name=KANJI_TABLE_NAME,
         only_not_added=False,

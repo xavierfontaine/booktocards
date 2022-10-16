@@ -110,7 +110,7 @@ class KnowledgeBase:
 
     def __init__(self):
         # Get now's timestamp for naming folders
-        self.now = str(datetime.date.now())
+        self.now = str(datetime.datetime.now())
         # Try load all data
         try:
             self._load_kb()
@@ -417,7 +417,7 @@ class KnowledgeBase:
         # Set to unknown in all sources
         self.__dict__[table_name].loc[is_item, IS_KNOWN_COLNAME] = False
 
-    def set_item_to_known_and_added_to_anki(
+    def set_item_to_added_to_anki(
         self,
         item_value: str,
         source_name: str,
@@ -452,10 +452,6 @@ class KnowledgeBase:
             raise ValueError(
                 f"{item_value=} cannot be found in {table_name}[{item_colname}]"
             )
-        # Set to known in all sources
-        self.__dict__[table_name].loc[
-            is_item & is_source, IS_KNOWN_COLNAME
-        ] = True
         # Set to added to anki in all sources
         self.__dict__[table_name].loc[
             is_item & is_source, IS_ADDED_TO_ANKI_COLNAME
@@ -596,14 +592,10 @@ class KnowledgeBase:
                     "`last_study_day` was provided but is not relevant to"
                     " kanjis"
                 )
-            if (
-                not df.loc[is_items_rows, TO_BE_STUDIED_FROM_DATE_COLNAME]
-                .isnull()
-                .all()
-            ):
-                is_items_rows = is_items_rows & (
-                    df[TO_BE_STUDIED_FROM_DATE_COLNAME] <= max_study_date
-                )
+            is_before_max_and_not_null = df.loc[is_items_rows, TO_BE_STUDIED_FROM_DATE_COLNAME].apply(
+                lambda x : False if type(x) is not datetime.date else x <= max_study_date
+            )
+            is_items_rows = is_items_rows & is_before_max_and_not_null
         return df[is_items_rows]
 
     def remove_doc(self, doc_name: str):

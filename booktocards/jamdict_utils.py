@@ -177,7 +177,6 @@ def get_kanji_info(kanji: str) -> KanjiInfo:
         if read["type"] == "ja_kun"
     ]
     nanoris = char_entry.to_dict()["nanoris"]
-    variants = char_entry.to_dict()["variants"]
     freq = char_entry.to_dict()["freq"]
     jlpt = char_entry.to_dict()["jlpt"]
     # Put that into a KanjiInfo, and return it
@@ -189,6 +188,5 @@ def get_kanji_info(kanji: str) -> KanjiInfo:
         nanoris=nanoris,
         freq=freq,
         jlpt=jlpt,
-        variants=variants,
     )
     return kanji_info

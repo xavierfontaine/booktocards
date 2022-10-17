@@ -90,14 +90,6 @@ KANJI_CARD_SOURCE_ATTR_NAME = "source_name_str"
 # ==================
 if "kb" not in st.session_state:
     st.session_state["kb"] = KnowledgeBase()
-if "sanseido_manipulator" not in st.session_state:
-    st.session_state["sanseido_manipulator"] = ManipulateSanseido()
-if "tatoeba_db" not in st.session_state:
-    st.session_state["tatoeba_db"] = ManipulateTatoeba()
-if "deepl_translator" not in st.session_state:
-    st.session_state["deepl_translator"] = deepl.Translator(
-        io.get_secrets()[SECRETS_DEEPL_KEY_KEY]
-    )
 if "study_options_are_set" not in st.session_state:
     st.session_state["study_options_are_set"] = False
 for df_name in [
@@ -142,7 +134,7 @@ min_count = int(
     st.slider(
         label="Count below which a token is not accounted for",
         min_value=1,
-        max_value=10,
+        max_value=100,
         value=1,
         step=1,
     )
@@ -162,13 +154,19 @@ n_unique_tokens_in_source = token_df[
 n_unique_tokens_in_source_unknown = token_df[
     (token_df[SOURCE_NAME_COLNAME] == doc_name)
     & (token_df[COUNT_COLNAME] >= min_count)
-    & (~token_df[IS_KNOWN_COLNAME])
+    & (
+        (~token_df[IS_KNOWN_COLNAME]) |
+        (~(token_df[IS_ADDED_TO_ANKI_COLNAME]==True))
+    )
 ].shape[0]
 n_unique_kanjis_in_source = kanji_df[
     kanji_df[SOURCE_NAME_COLNAME] == doc_name
 ].shape[0]
 n_unique_kanjis_in_source_unknown = kanji_df[
-    (kanji_df[SOURCE_NAME_COLNAME] == doc_name) & (~kanji_df[IS_KNOWN_COLNAME])
+    (kanji_df[SOURCE_NAME_COLNAME] == doc_name) & (
+        (~kanji_df[IS_KNOWN_COLNAME]) |
+        (~(kanji_df[IS_ADDED_TO_ANKI_COLNAME]==True))
+    )
 ].shape[0]
 st.markdown(
     f"###### Descriptive statistics for {doc_name} (latin tokens excluded)\n"
@@ -329,9 +327,8 @@ else:
     # Set status
     if st.button("Mark kanji as known", key="button_kanji_known"):
         for kanji, source_name in st.session_state["selected_kanji_src_cples"]:
-            scheduler.add_kanji_for_next_round(
+            scheduler.set_kanji_to_add_to_known(
                 kanji=kanji,
-                source_name=source_name
             )
     if st.button("Add to study list", key="button_kanji_for_study"):
         for kanji, source_name in st.session_state["selected_kanji_src_cples"]:
@@ -356,16 +353,39 @@ else:
 # =================
 st.subheader("End scheduling")
 if st.button("Finish scheduling", key="end_scheduling"):
-    for token, source_name in st.session_state["selected_tok_src_cples"] :
-        # End scheduling (make cards and shift kb)
-        # TODO
-        # Reload kb
-        # TODO
-        # Give access to files
-        # TODO
-        pass
+    # Get access to third-part tools
+    if "sanseido_manipulator" not in st.session_state:
+        st.session_state["sanseido_manipulator"] = ManipulateSanseido()
+    if "tatoeba_db" not in st.session_state:
+        st.session_state["tatoeba_db"] = ManipulateTatoeba()
+    if "deepl_translator" not in st.session_state:
+        st.session_state["deepl_translator"] = deepl.Translator(
+            io.get_secrets()[SECRETS_DEEPL_KEY_KEY]
+        )
+    # End scheduling (make cards and shift kb)
+    out_filepaths = scheduler.end_scheduling(
+        translate_source_ex=True,
+        sanseido_manipulator=st.session_state["sanseido_manipulator"],
+        tatoeba_db=st.session_state["tatoeba_db"],
+        deepl_translator=st.session_state["deepl_translator"],
+    )
+    st.session_state["out_filepaths"] = out_filepaths
+    # Reload kb
+    st.session_state["kb"] = KnowledgeBase()
 
-
+if "out_filepaths" in st.session_state:
+    vocab_filepath = st.session_state["out_filepaths"]["vocab"]
+    kanji_filepath = st.session_state["out_filepaths"]["kanji"]
+    st.download_button(
+            label="Vocabulary cards",
+            data=pd.read_csv(vocab_filepath).to_csv(index=False),
+            file_name="vocab.csv",
+        )
+    st.download_button(
+            label="Kanji cards",
+            data=pd.read_csv(kanji_filepath).to_csv(index=False),
+            file_name="kanji.csv",
+        )
 
 
 
@@ -373,7 +393,6 @@ if st.button("Finish scheduling", key="end_scheduling"):
 # Status
 # ======
 st.subheader("Items")
-
 st.write("Vocab for next round")
 st.dataframe(scheduler.vocab_for_next_round_df)
 st.write("Kanji for next round")

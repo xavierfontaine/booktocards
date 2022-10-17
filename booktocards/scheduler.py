@@ -630,7 +630,9 @@ class Scheduler:
         only_not_sched_to_suspended: bool,
     ) -> pd.DataFrame:
         """Extract [kanji, source] couples from all tokens"""
-        kanjis_sources_df = pd.DataFrame()
+        kanjis_sources_df = pd.DataFrame(
+            columns=DATA_MODEL[KANJI_TABLE_NAME]
+        )
         for token, source_name in token_df[
             [TOKEN_COLNAME, SOURCE_NAME_COLNAME]
         ].values:
@@ -684,7 +686,7 @@ class Scheduler:
         cards = kb.make_voc_cards(
             token=token,
             source_name=source_name,
-            translate_source_ex=False,
+            translate_source_ex=translate_source_ex,
             max_source_examples=max_source_examples,
             max_tatoeba_examples=max_tatoeba_examples,
             sanseido_manipulator=sanseido_manipulator,
@@ -851,4 +853,4 @@ class Scheduler:
             "vocab": vocab_filepath,
             "kanji": kanji_filepath,
         }
-        # TODO: add self-destroy mechanism
+        # TODO: add self-destroy mechanism?

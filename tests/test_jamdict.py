@@ -1,6 +1,6 @@
 import unittest
 from jamdict import Jamdict
-from booktocards.jamdict import (
+from booktocards.jamdict_utils import (
     drop_unfrequent_entries,
     drop_unfrequent_readings,
 )

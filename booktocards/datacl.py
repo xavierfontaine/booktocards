@@ -142,7 +142,6 @@ class KanjiInfo:
     nanoris: list[str] = field(default_factory=list)
     freq: Optional[int] = None
     jlpt: Optional[int] = None
-    variants: list[str] = field(default_factory=list)
     seen_in_tokens: list[str] = field(default_factory=list)
     source_name: Optional[str] = None
 
@@ -162,7 +161,6 @@ class KanjiCard:
     nanoris_str: Optional[str] = None
     freq: Optional[int] = None
     jlpt: Optional[int] = None
-    variants_str: Optional[str] = None
     seen_in_tokens_str: Optional[str] = None
     source_name: Optional[str] = None
 
@@ -187,8 +185,6 @@ def kanji_info_to_kanji_card(kanji_info: KanjiInfo) -> KanjiCard:
         nanoris_str = ", ".join(kanji_info.nanoris)
     freq = kanji_info.freq
     jlpt = kanji_info.jlpt
-    if kanji_info.variants is not None:
-        variants_str = ", ".join(kanji_info.variants)
     if kanji_info.seen_in_tokens is not None:
         seen_in_tokens_str = ", ".join(kanji_info.seen_in_tokens)
     jlpt = kanji_info.jlpt
@@ -202,7 +198,6 @@ def kanji_info_to_kanji_card(kanji_info: KanjiInfo) -> KanjiCard:
         nanoris_str=nanoris_str,
         freq=freq,
         jlpt=jlpt,
-        variants_str=variants_str,
         seen_in_tokens_str=seen_in_tokens_str,
         source_name=source_name,
     )

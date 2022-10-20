@@ -102,6 +102,7 @@ class Scheduler:
         n_days_study: int,
         n_cards_days: int,
         min_days_btwn_kanji_and_voc: int,
+        today: datetime.date = datetime.date.today(),
     ):
         # Sanity
         if n_days_study >= min_days_btwn_kanji_and_voc:
@@ -114,7 +115,7 @@ class Scheduler:
         self.n_days_study = n_days_study
         self.n_cards_days = n_cards_days
         self.min_time_btwn_kanji_and_voc = min_days_btwn_kanji_and_voc
-        self.today = datetime.date.today()
+        self.today = today
         # Init df for vocab with possibly unknown kanji
         self.vocab_w_uncertain_status_df = pd.DataFrame(
             columns=DATA_MODEL[TOKEN_TABLE_NAME]
@@ -461,7 +462,7 @@ class Scheduler:
             only_not_added=True,
             only_not_known=True,
             only_not_suspended=True,
-            only_no_study_date=True,
+            only_no_study_date=False,
             item_value=token,
             item_colname=TOKEN_COLNAME,
             source_name=source_name,
@@ -713,7 +714,7 @@ class Scheduler:
             card = self._make_voc_cards_from_query(
                 token=token,
                 source_name=source_name,
-                translate_source_ex=False,
+                translate_source_ex=translate_source_ex,
                 sanseido_manipulator=sanseido_manipulator,
                 tatoeba_db=tatoeba_db,
                 deepl_translator=deepl_translator,

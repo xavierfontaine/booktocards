@@ -1,6 +1,7 @@
 import deepl
-import streamlit as st
+import os
 import pandas as pd
+import streamlit as st
 from datetime import date, timedelta
 from io import StringIO
 from st_aggrid import AgGrid, GridOptionsBuilder, AgGridReturn
@@ -76,6 +77,9 @@ def get_voc_df_w_date_until(max_date: date, session_state):
 # =========
 # Constants
 # =========
+# Test mode?
+TEST_MODE: bool = False
+TEST_KB_DIRNAME = "kb_test"
 # Parameters for card creation
 MAX_SOURCE_EX = 3
 MAX_TATOEBA_EX = 3
@@ -89,7 +93,15 @@ KANJI_CARD_SOURCE_ATTR_NAME = "source_name_str"
 # Init session state
 # ==================
 if "kb" not in st.session_state:
-    st.session_state["kb"] = KnowledgeBase()
+    if TEST_MODE:
+        kb_dirpath = os.path.join(
+            io.get_data_path(),
+            "out",
+            TEST_KB_DIRNAME,
+        )
+        st.session_state["kb"] = KnowledgeBase(kb_dirpath=kb_dirpath)
+    else:
+        st.session_state["kb"] = KnowledgeBase()
 if "study_options_are_set" not in st.session_state:
     st.session_state["study_options_are_set"] = False
 for df_name in [
@@ -247,6 +259,24 @@ min_days_btwn_kanji_and_voc = int(
         key="min_days_btwn_kanji_and_voc",
     )
 )
+if TEST_MODE:
+    added_days_for_test = int(
+        st.slider(
+            label="How many days later than today should we pretend to be? (for testing)",
+            min_value=0,
+            max_value=100,
+            value=0,
+            step=1,
+            key="added_days_for_test",
+        )
+    )
+    today = date.today() + timedelta(added_days_for_test)
+    st.write(
+        f"Today is {today}. The study will span untile"
+        f" {today+timedelta(n_days_study)}."
+    )
+else:
+    today = date.today()
 
 if st.button("Use these settings for study"):
     st.session_state["scheduler"] = Scheduler(
@@ -254,6 +284,7 @@ if st.button("Use these settings for study"):
         n_days_study=st.session_state["n_days_study"],
         n_cards_days=st.session_state["n_cards_days"],
         min_days_btwn_kanji_and_voc=st.session_state["min_days_btwn_kanji_and_voc"],
+        today=today,
     )
 
 
@@ -281,6 +312,7 @@ doc_name = st.selectbox(
 )
 # Display studiable items
 if len(scheduler.vocab_w_uncertain_status_df) == 0:
+    st.subheader("Manage vocabulary")
     # Show studiable items
     studiable_tokens_df = scheduler.get_studiable_voc(sort=True)[:20]
     studiable_tokens_ag = make_ag(df=studiable_tokens_df)
@@ -288,7 +320,6 @@ if len(scheduler.vocab_w_uncertain_status_df) == 0:
         ag_grid_output=studiable_tokens_ag, item_colname=TOKEN_COLNAME,
     )
     # Allow to mark as known or suspended
-    st.subheader("Manage vocabulary")
     if st.button("Mark vocab as known", key="button_voc_known"):
         for token, source_name in st.session_state["selected_tok_src_cples"] :
             scheduler.set_vocab_to_add_to_known(
@@ -376,16 +407,26 @@ if st.button("Finish scheduling", key="end_scheduling"):
 if "out_filepaths" in st.session_state:
     vocab_filepath = st.session_state["out_filepaths"]["vocab"]
     kanji_filepath = st.session_state["out_filepaths"]["kanji"]
-    st.download_button(
-            label="Vocabulary cards",
-            data=pd.read_csv(vocab_filepath).to_csv(index=False),
-            file_name="vocab.csv",
-        )
-    st.download_button(
-            label="Kanji cards",
-            data=pd.read_csv(kanji_filepath).to_csv(index=False),
-            file_name="kanji.csv",
-        )
+    try:
+        voc_df = pd.read_csv(vocab_filepath)
+    except pd.errors.EmptyDataError:
+        pass
+    else:
+        st.download_button(
+                label="Vocabulary cards",
+                data=voc_df.to_csv(index=False),
+                file_name="vocab.csv",
+            )
+    try:
+        kanji_df = pd.read_csv(kanji_filepath)
+    except pd.errors.EmptyDataError:
+        pass
+    else:
+        st.download_button(
+                label="Kanji cards",
+                data=kanji_df.to_csv(index=False),
+                file_name="kanji.csv",
+            )
 
 
 

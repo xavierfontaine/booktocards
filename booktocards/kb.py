@@ -108,7 +108,9 @@ class KnowledgeBase:
         are the values in `_DATA_MODEL`[p]
     """
 
-    def __init__(self):
+    def __init__(self, kb_dirpath: str = _kb_dirpath):
+        # Attach arguments to self
+        self.kb_dirpath = kb_dirpath
         # Get now's timestamp for naming folders
         self.now = str(datetime.datetime.now())
         # Try load all data
@@ -143,7 +145,7 @@ class KnowledgeBase:
     def _load_df(self, df_name: str) -> None:
         """Read pd.DataFrame and attach it to self"""
         filepath = os.path.join(
-            _kb_dirpath,
+            self.kb_dirpath,
             df_name + _OUT_PICKLE_EXTENSION,
         )
         if not os.path.isfile(filepath):
@@ -161,13 +163,13 @@ class KnowledgeBase:
         """
         if is_backup:
             dirpath = os.path.join(
-                _kb_dirpath,
+                self.kb_dirpath,
                 self.now,
             )
             if not os.path.isdir(dirpath):
                 os.mkdir(dirpath)
         else:
-            dirpath = _kb_dirpath
+            dirpath = self.kb_dirpath
         filepath = os.path.join(
             dirpath,
             df_name + _OUT_PICKLE_EXTENSION,

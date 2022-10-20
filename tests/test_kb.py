@@ -23,17 +23,16 @@ exp_self_tables = [TOKEN_TABLE_NAME, KANJI_TABLE_NAME, SEQ_TABLE_NAME]
 exp_n_tables = len(exp_self_tables)
 
 
-def test_files_are_created_and_reloaded(monkeypatch, tmp_path):
+def test_files_are_created_and_reloaded(tmp_path):
     # Change path where kb will be saved
     path = tmp_path.resolve()
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # First, make sure that the list of tables to be tested is consitent with
     # the data model
     assert set(exp_self_tables) == set(list(DATA_MODEL.keys()))
     # Check there is not file
     assert len(os.listdir(path)) == 0
     # Check 3 files and one folder have been created
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     assert len(os.listdir(path)) == 4
     # Check that only one of these are a folder
     assert len(next(os.walk(path))[1]) == 1
@@ -64,18 +63,17 @@ def test_files_are_created_and_reloaded(monkeypatch, tmp_path):
     assert kb.__dict__[SEQ_TABLE_NAME].shape[0] == 1
     # Save, reload and check everything is still here
     kb.save_kb()
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     assert kb.__dict__[TOKEN_TABLE_NAME].shape[0] == 2
     assert kb.__dict__[KANJI_TABLE_NAME].shape[0] == 2
     assert kb.__dict__[SEQ_TABLE_NAME].shape[0] == 1
 
 
-def test_error_when_adding_again_a_doc(monkeypatch, tmp_path):
+def test_error_when_adding_again_a_doc(tmp_path):
     # Change path where kb will be saved
     path = tmp_path.resolve()
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Add doc
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
     # Adding again should fail
@@ -85,12 +83,11 @@ def test_error_when_adding_again_a_doc(monkeypatch, tmp_path):
         )
 
 
-def test_remove_doc_works(monkeypatch, tmp_path):
+def test_remove_doc_works(tmp_path):
     # Change path where kb will be saved
     path = tmp_path.resolve()
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Add doc
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
     # Remove the doc
@@ -98,17 +95,16 @@ def test_remove_doc_works(monkeypatch, tmp_path):
     for table_name in exp_self_tables:
         assert kb.__dict__[table_name].shape[0] == 0
     # Is the doc still absent reloading?
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     for table_name in exp_self_tables:
         assert kb.__dict__[table_name].shape[0] == 0
 
 
-def test_set_to_known_works(monkeypatch, tmp_path):
+def test_set_to_known_works(tmp_path):
     # Change path where kb will be saved
     path = tmp_path.resolve()
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Add doc
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
     # Add a 2nd doc (the same)
@@ -124,16 +120,15 @@ def test_set_to_known_works(monkeypatch, tmp_path):
     assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 2
     # Check this is still here after saving/reloading
     kb.save_kb()
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 2
 
 
-def test_automatically_set_known_for_new_doc(monkeypatch, tmp_path):
+def test_automatically_set_known_for_new_doc(tmp_path):
     # Change path where kb will be saved
     path = tmp_path.resolve()
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Add doc
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
     # Set to known
@@ -149,12 +144,11 @@ def test_automatically_set_known_for_new_doc(monkeypatch, tmp_path):
     assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 2
 
 
-def test_set_added_to_anki_works(monkeypatch, tmp_path):
+def test_set_added_to_anki_works(tmp_path):
     # Change path where kb will be saved
     path = tmp_path.resolve()
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Add doc
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
     # Add a 2nd doc (the same)
@@ -171,16 +165,15 @@ def test_set_added_to_anki_works(monkeypatch, tmp_path):
     assert kb.__dict__[TOKEN_TABLE_NAME][IS_ADDED_TO_ANKI_COLNAME].sum() == 1
     # Check this is still here after saving/reloading
     kb.save_kb()
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     assert kb.__dict__[TOKEN_TABLE_NAME][IS_ADDED_TO_ANKI_COLNAME].sum() == 1
 
 
-def test_set_is_suspended_for_source_works(monkeypatch, tmp_path):
+def test_set_is_suspended_for_source_works(tmp_path):
     # Change path where kb will be saved
     path = tmp_path.resolve()
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Add doc
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
     # Add a 2nd doc (the same)
@@ -203,19 +196,18 @@ def test_set_is_suspended_for_source_works(monkeypatch, tmp_path):
     )
     # Check this is still here after saving/reloading
     kb.save_kb()
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     assert (
         kb.__dict__[TOKEN_TABLE_NAME][IS_SUPSENDED_FOR_SOURCE_COLNAME].sum()
         == 1
     )
 
 
-def test_set_study_from_date_for_token_source(monkeypatch, tmp_path):
+def test_set_study_from_date_for_token_source(tmp_path):
     # Change path where kb will be saved
     path = tmp_path.resolve()
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Initialize kb and add doc
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる"
     doc_name = "test_doc"
     kb.add_doc(doc=doc, doc_name=doc_name, drop_ascii_alphanum_toks=False)
@@ -231,12 +223,11 @@ def test_set_study_from_date_for_token_source(monkeypatch, tmp_path):
     ]
 
 
-def test_get_items_works(monkeypatch, tmp_path):
+def test_get_items_works(tmp_path):
     # Change path where kb will be saved
     path = tmp_path.resolve()
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path)
     # Initialize kb and add doc
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
     doc_name = "test_doc"
     kb.add_doc(doc=doc, doc_name=doc_name, drop_ascii_alphanum_toks=False)

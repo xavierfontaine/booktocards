@@ -38,10 +38,9 @@ def test_add_voc_with_known_kanjis(monkeypatch, tmp_path):
     path_kb = os.path.join(path, "kb")
     os.mkdir(path_cards)
     os.mkdir(path_kb)
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path_kb)
     monkeypatch.setattr(booktocards.scheduler, "_cards_dirpath", path_cards)
     # Init kb and scheduler
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     min_days_btwn_kanji_and_voc = 3
     scheduler = booktocards.scheduler.Scheduler(
         kb=kb,
@@ -77,10 +76,9 @@ def test_add_voc_with_unknown_kanjis(monkeypatch, tmp_path):
     path_kb = os.path.join(path, "kb")
     os.mkdir(path_cards)
     os.mkdir(path_kb)
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path_kb)
     monkeypatch.setattr(booktocards.scheduler, "_cards_dirpath", path_cards)
     # Init kb and scheduler
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     min_days_btwn_kanji_and_voc = 3
     scheduler = booktocards.scheduler.Scheduler(
         kb=kb,
@@ -146,10 +144,9 @@ def test_add_voc_with_kanji_set_to_add_to_known(monkeypatch, tmp_path):
     path_kb = os.path.join(path, "kb")
     os.mkdir(path_cards)
     os.mkdir(path_kb)
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path_kb)
     monkeypatch.setattr(booktocards.scheduler, "_cards_dirpath", path_cards)
     # Init kb and scheduler
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     min_days_btwn_kanji_and_voc = 3
     scheduler = booktocards.scheduler.Scheduler(
         kb=kb,
@@ -177,10 +174,9 @@ def test_add_to_much_voc_complains(monkeypatch, tmp_path):
     path_kb = os.path.join(path, "kb")
     os.mkdir(path_cards)
     os.mkdir(path_kb)
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path_kb)
     monkeypatch.setattr(booktocards.scheduler, "_cards_dirpath", path_cards)
     # Init kb
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む歌う"
     source_name = "test_doc"
     kb.add_doc(doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False)
@@ -223,10 +219,9 @@ def test_get_studiable_voc(monkeypatch, tmp_path):
     path_kb = os.path.join(path, "kb")
     os.mkdir(path_cards)
     os.mkdir(path_kb)
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path_kb)
     monkeypatch.setattr(booktocards.scheduler, "_cards_dirpath", path_cards)
     # Init kb and scheduler
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     min_days_btwn_kanji_and_voc = 3
     scheduler = booktocards.scheduler.Scheduler(
         kb=kb,
@@ -287,10 +282,9 @@ def test_get_studiable_kanji(monkeypatch, tmp_path):
     path_kb = os.path.join(path, "kb")
     os.mkdir(path_cards)
     os.mkdir(path_kb)
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path_kb)
     monkeypatch.setattr(booktocards.scheduler, "_cards_dirpath", path_cards)
     # Init kb and scheduler
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     min_days_btwn_kanji_and_voc = 3
     scheduler = booktocards.scheduler.Scheduler(
         kb=kb,
@@ -357,10 +351,9 @@ def test_end_scheduling(monkeypatch, tmp_path):
     path_kb = os.path.join(path, "kb")
     os.mkdir(path_cards)
     os.mkdir(path_kb)
-    monkeypatch.setattr(booktocards.kb, "_kb_dirpath", path_kb)
     monkeypatch.setattr(booktocards.scheduler, "_cards_dirpath", path_cards)
     # Init kb and scheduler
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     min_days_btwn_kanji_and_voc = 3
     scheduler = MockScheduler(
         kb=kb,
@@ -408,7 +401,7 @@ def test_end_scheduling(monkeypatch, tmp_path):
     kanji_df = pd.read_csv(filepath_or_buffer=sched_out["kanji"])
     pd.testing.assert_frame_equal(kanji_df, scheduler.kanji_cards)
     # Reload the kb
-    kb = booktocards.kb.KnowledgeBase()
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     token_df = kb[TOKEN_TABLE_NAME]
     kanji_df = kb[KANJI_TABLE_NAME]
     # Check 食 as to add to known

@@ -640,6 +640,7 @@ class KnowledgeBase:
         sanseido_manipulator: ManipulateSanseido,
         tatoeba_db: ManipulateTatoeba,
         deepl_translator: deepl.Translator,
+        ex_linebreak_repl: Optional[str] = None,
     ) -> VocabCard:
         """Make vocabulary card for `token` in `source_name`
 
@@ -656,6 +657,8 @@ class KnowledgeBase:
                 object
             tatoeba_db (ManipulateTatoeba): ManipulateTatoeba object
             deepl_translator (deepl.Translator): deepl.Translator object
+            ex_linebreak_repl (Optional[str] = None): str to replace linebreaks
+                in examples
 
         Returns:
             VocabCard
@@ -736,7 +739,7 @@ class KnowledgeBase:
             ]
         # Make card
         cards = token_info_to_voc_cards(
-            token_info=token_info, source_name=source_name
+            token_info=token_info, ex_linebreak_repl=ex_linebreak_repl, source_name=source_name
         )
         # Return
         return cards

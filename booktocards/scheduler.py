@@ -23,6 +23,7 @@ from booktocards.kb import (
     TOKEN_COLNAME,
     KANJI_COLNAME,
     SEQ_COLNAME,
+    SEQS_IDS_COLNAME,
     TO_BE_STUDIED_FROM_DATE_COLNAME,
     COUNT_COLNAME,
 )
@@ -163,7 +164,7 @@ class Scheduler:
         # Calculate number of vocab to add
         self.n_items_to_add = (
             self.n_days_study * self.n_cards_days
-        )  - len(self.due_vocab_df) 
+        )  - len(self.due_vocab_df)
 
     def set_vocab_to_add_to_known(
         self,
@@ -225,7 +226,8 @@ class Scheduler:
                 f"{token=} is already added to self.{df_name}"
             )
 
-    def get_studiable_voc(self, sort: bool = False) -> pd.DataFrame:
+    def get_studiable_voc(self, min_count: int = 1, sort_seq_id: bool =
+                    False, sort_count: bool = False) -> pd.DataFrame:
         """Return voc not marked in either the kb and the scheduler
 
         Not marked in kb as known/added/suspended/due
@@ -241,6 +243,9 @@ class Scheduler:
             only_not_suspended=True,
             only_no_study_date=True,
         )
+        # Remove those below a certain count
+        token_not_marked_in_kb_df = token_not_marked_in_kb_df[token_not_marked_in_kb_df[COUNT_COLNAME] >=
+                min_count]
         # Init the bool for tokens not marked in self
         is_marked_in_sched = [
             False for i in range(len(token_not_marked_in_kb_df))
@@ -278,9 +283,17 @@ class Scheduler:
         # Get out df
         out_df = token_not_marked_in_kb_df[~is_marked_in_sched]
         # Sort
-        if sort:
-            out_df = out_df.sort_values(by=[COUNT_COLNAME],
-            ascending=False)
+        if sort_seq_id and sort_count:
+            out_df["first_seq"] = out_df[SEQS_IDS_COLNAME].apply(lambda x: x[0])
+            out_df = out_df.sort_values(by=["first_seq", COUNT_COLNAME],
+            ascending=[True, False])
+            del out_df["first_seq"]
+        elif sort_seq_id and not sort_count:
+            out_df["first_seq"] = out_df[SEQS_IDS_COLNAME].apply(lambda x: x[0])
+            out_df = out_df.sort_values(by=["first_seq"], ascending=True)
+            del out_df["first_seq"]
+        elif not sort_seq_id and sort_count:
+            out_df = out_df.sort_values(by=[COUNT_COLNAME], ascending=False)
         return out_df
 
     def get_studiable_kanji(self) -> pd.DataFrame:
@@ -358,7 +371,6 @@ class Scheduler:
         n_added_items = (
             len(self.kanji_for_next_round_df)
             + len(self.vocab_for_next_round_df)
-            + len(self.vocab_w_uncertain_status_df)
         )
         max_added_items = self.n_days_study * self.n_cards_days
         if n_added_items >= max_added_items:
@@ -380,20 +392,6 @@ class Scheduler:
         self._raise_error_if_tok_in_uncertain_df(token=token)
         self._raise_error_if_tok_in_voc_for_next_round(token=token)
         self._raise_error_if_tok_in_voc_for_rounds_after_next(token=token)
-        self._raise_error_if_too_much_items_already_present(
-            item_value=token, source_name=source_name
-        )
-        # Refuse if already enough items added
-        n_added_items = len(self.kanji_for_next_round_df) + len(
-            self.vocab_w_uncertain_status_df
-        )
-        max_added_items = self.n_days_study * self.n_cards_days
-        if n_added_items >= max_added_items:
-            raise EnoughItemsAddedError(
-                f"Already {n_added_items}/{max_added_items} added items for"
-                " next study."
-                f" Not adding {token=} for {source_name=}."
-            )
         # Get item from kb
         token_df = self.kb.get_items(
             table_name=TOKEN_TABLE_NAME,
@@ -439,6 +437,11 @@ class Scheduler:
                     ]
                 )
 
+    def empty_vocab_w_uncertain_status_df(self):
+        self.vocab_w_uncertain_status_df = pd.DataFrame(
+            columns=DATA_MODEL[TOKEN_TABLE_NAME]
+        )
+
     def add_vocab_for_next_round(self, token: Token, source_name: SourceName):
         """Add vocab to next study cycle"""
         # Sanity
@@ -449,13 +452,9 @@ class Scheduler:
             vocab_is_in_uncertain_df = True
         else:
             vocab_is_in_uncertain_df = False
-        # Check not to much vocab already, except if voc present in
-        # vocab_w_uncertain_status_df (will be promoted to
-        # vocab_for_next_round_df)
-        if not vocab_is_in_uncertain_df:
-            self._raise_error_if_too_much_items_already_present(
-                item_value=token, source_name=source_name
-            )
+        self._raise_error_if_too_much_items_already_present(
+            item_value=token, source_name=source_name
+        )
         # Get tokens
         token_df = self.kb.get_items(
             table_name=TOKEN_TABLE_NAME,
@@ -681,6 +680,7 @@ class Scheduler:
         max_source_examples: int = 3,
         max_tatoeba_examples: int = 3,
         deepl_translator: Optional[Translator] = None,
+        ex_linebreak_repl: Optional[str] = None,
     ) -> list[VocabCard]:
         """Wrapper for code legibility"""
         kb = self.kb
@@ -693,6 +693,7 @@ class Scheduler:
             sanseido_manipulator=sanseido_manipulator,
             tatoeba_db=tatoeba_db,
             deepl_translator=deepl_translator,
+            ex_linebreak_repl=ex_linebreak_repl,
         )
         return cards
 
@@ -705,6 +706,7 @@ class Scheduler:
         sanseido_manipulator: ManipulateSanseido,
         tatoeba_db: ManipulateTatoeba,
         deepl_translator: Optional[Translator] = None,
+        ex_linebreak_repl: Optional[str] = None,
     ) -> list[VocabCard]:
         """Wrapper for code legibility"""
         cards = []
@@ -718,6 +720,7 @@ class Scheduler:
                 sanseido_manipulator=sanseido_manipulator,
                 tatoeba_db=tatoeba_db,
                 deepl_translator=deepl_translator,
+                ex_linebreak_repl=ex_linebreak_repl,
             )
             cards.extend(card)
         return cards
@@ -743,7 +746,9 @@ class Scheduler:
         translate_source_ex: bool,
         sanseido_manipulator: ManipulateSanseido,
         tatoeba_db: ManipulateTatoeba,
+        for_anki: bool,
         deepl_translator: Optional[Translator] = None,
+        ex_linebreak_repl: Optional[str] = None,
     ) -> dict[Literal["vocab", "kanji"], FilePath]:
         """Write cards and make backup"""
         # Make a copy of db before modifying it
@@ -764,6 +769,7 @@ class Scheduler:
                 sanseido_manipulator=sanseido_manipulator,
                 tatoeba_db=tatoeba_db,
                 deepl_translator=deepl_translator,
+                ex_linebreak_repl=ex_linebreak_repl,
             )
         )
         kanji_cards_df = pd.DataFrame(
@@ -771,6 +777,14 @@ class Scheduler:
                 kanji_df=self.kanji_for_next_round_df,
             )
         )
+        # If for Anki, replace line breaks with their html counterparts
+        if for_anki:
+            vocab_cards_df = vocab_cards_df.replace({"\n": "<br/>"}, regex=True).replace(
+                {"\r": "<br/>"}, regex=True
+            )
+            kanji_cards_df = kanji_cards_df.replace({"\n": "<br/>"}, regex=True).replace(
+                {"\r": "<br/>"}, regex=True
+            )
         # Mark vocab added for next round as added
         self.vocab_for_next_round_df.apply(
             lambda x: altered_kb.set_item_to_added_to_anki(

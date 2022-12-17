@@ -28,7 +28,7 @@ from booktocards.kb import (
     COUNT_COLNAME,
     TO_BE_STUDIED_FROM_DATE_COLNAME,
 )
-from booktocards.scheduler import Scheduler, KanjiNotKnownError
+from booktocards.scheduler import Scheduler, KanjiNotKnownError, EnoughItemsAddedError
 
 
 # =========
@@ -88,6 +88,8 @@ SECRETS_DEEPL_KEY_KEY = "deepl_api_key"
 # Card attribute names
 KANJI_CARD_KANJI_ATTR_NAME = "lemma"
 KANJI_CARD_SOURCE_ATTR_NAME = "source_name_str"
+# Replacement for linebreaks in examples
+EX_LINEBREAK_REPL = " // "
 
 # ==================
 # Init session state
@@ -234,7 +236,7 @@ n_cards_days = int(
         label="How many new cards a day?",
         min_value=1,
         max_value=30,
-        value=6,
+        value=5,
         step=1,
         key="n_cards_days",
     )
@@ -243,7 +245,7 @@ min_count = int(
     st.slider(
         label="What is the lowest count for words to consider?",
         min_value=1,
-        max_value=30,
+        max_value=10,
         value=4,
         step=1,
         key="min_count",
@@ -278,7 +280,7 @@ if TEST_MODE:
 else:
     today = date.today()
 
-if st.button("Use these settings for study"):
+if st.button("Use these settings for study (unsaved changes will be lost)"):
     st.session_state["scheduler"] = Scheduler(
         kb=kb,
         n_days_study=st.session_state["n_days_study"],
@@ -310,11 +312,15 @@ st.write(
 doc_name = st.selectbox(
     label="Document name", options=document_names, key="doc_for_scheduling"
 )
+sort_by_seq_id = st.checkbox(label="Sort by id of first sequence", value=True)
+sort_by_count = st.checkbox(label="Sort by count", value=True)
 # Display studiable items
 if len(scheduler.vocab_w_uncertain_status_df) == 0:
     st.subheader("Manage vocabulary")
     # Show studiable items
-    studiable_tokens_df = scheduler.get_studiable_voc(sort=True)[:20]
+    studiable_tokens_df = scheduler.get_studiable_voc(
+        min_count=min_count, sort_seq_id=sort_by_seq_id, sort_count=sort_by_count,
+    )[:20]
     studiable_tokens_ag = make_ag(df=studiable_tokens_df)
     st.session_state["selected_tok_src_cples"] = extract_item_and_source_from_ag(
         ag_grid_output=studiable_tokens_ag, item_colname=TOKEN_COLNAME,
@@ -325,7 +331,7 @@ if len(scheduler.vocab_w_uncertain_status_df) == 0:
             scheduler.set_vocab_to_add_to_known(
                 token=token,
             )
-    if st.button("Mark vocab as suspended", key="button_voc_suspended"):
+    if st.button("Mark vocab as suspended for this source", key="button_voc_suspended"):
         for token, source_name in st.session_state["selected_tok_src_cples"] :
             scheduler.set_vocab_to_add_to_suspended(
                 token=token,
@@ -362,11 +368,19 @@ else:
                 kanji=kanji,
             )
     if st.button("Add to study list", key="button_kanji_for_study"):
-        for kanji, source_name in st.session_state["selected_kanji_src_cples"]:
-            scheduler.add_kanji_for_next_round(
-                kanji=kanji,
-                source_name=source_name
+        try:
+            for kanji, source_name in st.session_state["selected_kanji_src_cples"]:
+                scheduler.add_kanji_for_next_round(
+                    kanji=kanji,
+                    source_name=source_name
+                )
+        except EnoughItemsAddedError:
+            st.info(
+                "Enoug items added aldready. Emptied the list of candidate"
+                " vocab."
             )
+            scheduler.empty_vocab_w_uncertain_status_df()
+
     # When all kanjis have been dealt with, try to add to next round, else to
     # rounds after
     if len(kanjis_sources_to_check_df) == 0:
@@ -398,7 +412,9 @@ if st.button("Finish scheduling", key="end_scheduling"):
         translate_source_ex=True,
         sanseido_manipulator=st.session_state["sanseido_manipulator"],
         tatoeba_db=st.session_state["tatoeba_db"],
+        for_anki=True,
         deepl_translator=st.session_state["deepl_translator"],
+        ex_linebreak_repl=EX_LINEBREAK_REPL,
     )
     st.session_state["out_filepaths"] = out_filepaths
     # Reload kb

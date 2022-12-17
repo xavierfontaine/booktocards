@@ -177,7 +177,7 @@ def test_add_to_much_voc_complains(monkeypatch, tmp_path):
     monkeypatch.setattr(booktocards.scheduler, "_cards_dirpath", path_cards)
     # Init kb
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
-    doc = "食べる飲む歌う"
+    doc = "食べる飲む歌う。感じる。"
     source_name = "test_doc"
     kb.add_doc(doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False)
     min_days_btwn_kanji_and_voc = 3
@@ -188,28 +188,16 @@ def test_add_to_much_voc_complains(monkeypatch, tmp_path):
         n_cards_days=2,
         min_days_btwn_kanji_and_voc=min_days_btwn_kanji_and_voc,
     )
-    scheduler.add_vocab_of_interest(token="食べる", source_name=source_name)
-    scheduler.add_vocab_of_interest(token="飲む", source_name=source_name)
+    scheduler.set_kanji_to_add_to_known(kanji="食")
+    scheduler.set_kanji_to_add_to_known(kanji="飲")
+    scheduler.add_vocab_for_next_round(token="食べる", source_name=source_name)
+    scheduler.add_kanji_for_next_round(kanji="飲", source_name=source_name)
     with pytest.raises(EnoughItemsAddedError):
-        scheduler.add_vocab_of_interest(token="歌う", source_name=source_name)
+        scheduler.set_kanji_to_add_to_known(kanji="感")
+        scheduler.add_vocab_for_next_round(token="感じる", source_name=source_name)
     # Try adding a kanji
     with pytest.raises(EnoughItemsAddedError):
         scheduler.add_kanji_for_next_round(kanji="歌", source_name=source_name)
-    # Mark kanji from vocab_w_uncertain_status_df as known, and add to next round
-    scheduler.set_kanji_to_add_to_known(kanji="食")
-    scheduler.add_vocab_for_next_round(token="食べる", source_name=source_name)
-    # Incidental: check vocab was removed from unertain df
-    assert (
-        "食べる"
-        not in scheduler.vocab_w_uncertain_status_df[TOKEN_COLNAME].tolist()
-    )
-    # Mark other kanji as known, and try to add to next round
-    scheduler.set_kanji_to_add_to_known(kanji="歌")
-    with pytest.raises(EnoughItemsAddedError):
-        scheduler.add_vocab_for_next_round(
-            token="歌う",
-            source_name=source_name,
-        )
 
 
 def test_get_studiable_voc(monkeypatch, tmp_path):

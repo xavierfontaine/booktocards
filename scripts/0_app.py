@@ -294,6 +294,17 @@ if st.button("Use these settings for study (unsaved changes will be lost)"):
 # Schedule studies
 # ================
 st.header("Add study material")
+n_shown_tokens = int(
+    st.slider(
+        label="Number of tokens to show",
+        min_value=1,
+        max_value=100,
+        value=20,
+        step=1,
+        key="n_shown_tokens",
+    )
+)
+
 # Get scheduler (init if needed)
 if "scheduler" not in st.session_state:
     st.session_state["scheduler"] = Scheduler(
@@ -320,7 +331,7 @@ if len(scheduler.vocab_w_uncertain_status_df) == 0:
     # Show studiable items
     studiable_tokens_df = scheduler.get_studiable_voc(
         min_count=min_count, sort_seq_id=sort_by_seq_id, sort_count=sort_by_count,
-    )[:20]
+    )[:n_shown_tokens]
     studiable_tokens_ag = make_ag(df=studiable_tokens_df)
     st.session_state["selected_tok_src_cples"] = extract_item_and_source_from_ag(
         ag_grid_output=studiable_tokens_ag, item_colname=TOKEN_COLNAME,

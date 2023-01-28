@@ -23,6 +23,7 @@ ankipandas = "^0.3.10"
 streamlit = "^1.13.0"
 streamlit-aggrid = "^0.3.3"
 better-exceptions = "^0.3.3"
+pybind11 = "^2.10.3"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1.0"

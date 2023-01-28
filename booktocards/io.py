@@ -30,6 +30,15 @@ def get_data_path() -> str:
     )
 
 
+def get_data_sources_path() -> str:
+    """Path to sources in the data/in folder"""
+    return os.path.join(
+        get_data_path(),
+        "in",
+        "sources",
+    )
+
+
 def _get_dict_folder_path() -> str:
     """Path to folder containing dictionaries"""
     return os.path.join(

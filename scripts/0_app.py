@@ -128,6 +128,7 @@ for df_name in [
 #    st.session_state["cards_w_date"] = tok_cards
 
 
+
 # ================
 # Shared variables
 # ================
@@ -136,6 +137,8 @@ document_names = kb[TOKEN_TABLE_NAME][SOURCE_NAME_COLNAME].unique()
 token_df = kb[TOKEN_TABLE_NAME]
 kanji_df = kb[KANJI_TABLE_NAME]
 seq_df = kb[SEQ_TABLE_NAME]
+
+st.write(token_df.tail())
 
 
 # ================
@@ -191,6 +194,9 @@ st.markdown(
 # Add document
 st.subheader("Add a document")
 doc_name = st.text_input(label="Document name (short)")
+sep_tok = st.text_input(label="Special sentence separator?")
+if sep_tok == "":
+    sep_tok = None
 if doc_name in [None, ""]:
     st.warning("Enter a document name before uploading")
 elif doc_name in document_names:
@@ -203,7 +209,8 @@ else:
         stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
         uploaded_text = stringio.read()
         kb.add_doc(
-            doc=uploaded_text, doc_name=doc_name, drop_ascii_alphanum_toks=True
+            doc=uploaded_text, doc_name=doc_name,
+            drop_ascii_alphanum_toks=True, sep_tok=sep_tok,
         )
         kb.save_kb(make_backup=True)
         st.info("Document added. Reload page.")
@@ -214,6 +221,7 @@ doc_to_remove = st.selectbox(
 )
 if st.button("Remove document"):
     kb.remove_doc(doc_name=doc_to_remove)
+    kb.save_kb(make_backup=True)
     st.info(f"Removed {doc_to_remove}. Reload page.")
 
 
@@ -317,7 +325,7 @@ scheduler: Scheduler = st.session_state["scheduler"]
 # Display number of added items
 n_added_items = len(scheduler.vocab_for_next_round_df) + len(scheduler.kanji_for_next_round_df)
 st.write(
-    f"Added {n_added_items}/{scheduler.n_items_to_add} items"
+    f"Added {n_added_items}/{scheduler.n_items_to_add + len(scheduler.due_vocab_df)} items"
 )
 # Chose doc name
 doc_name = st.selectbox(
@@ -331,7 +339,10 @@ if len(scheduler.vocab_w_uncertain_status_df) == 0:
     # Show studiable items
     studiable_tokens_df = scheduler.get_studiable_voc(
         min_count=min_count, sort_seq_id=sort_by_seq_id, sort_count=sort_by_count,
-    )[:n_shown_tokens]
+        source_name=doc_name,
+    )
+    if len(studiable_tokens_df) > n_shown_tokens:
+        studiable_tokens_df = studiable_tokens_df[:n_shown_tokens]
     studiable_tokens_ag = make_ag(df=studiable_tokens_df)
     st.session_state["selected_tok_src_cples"] = extract_item_and_source_from_ag(
         ag_grid_output=studiable_tokens_ag, item_colname=TOKEN_COLNAME,
@@ -401,6 +412,12 @@ else:
                 scheduler.add_vocab_for_next_round(token=token, source_name=source_name)
             except KanjiNotKnownError:
                 scheduler.add_vocab_for_rounds_after_next(token=token, source_name=source_name)
+            except EnoughItemsAddedError:
+                st.info(
+                    "Enoug items added aldready. Emptied the list of candidate"
+                    " vocab."
+                )
+                scheduler.empty_vocab_w_uncertain_status_df()
 
 
 

@@ -28,9 +28,8 @@ from booktocards import io as b2c_io
 # Constants
 # =========
 # Path
-SLACK_LOGS_FOLDERNAME = "zeals_slack_2016-01-01_2022-02-17"
 SLACK_USER_JSON_FILENAME = "users.json"
-OUT_FOLDERPATH = "/home/xavier/Documents/"
+SLACK_LOGS_FOLDERPATH = "/home/xavier/Documents/data/zeals_slack_2016-01-01_2022-02-17"
 OUT_FILENAME = "slack_extract.txt"
 # Slack user json - keys
 SLACK_USERJSON_ID_KEY = "id"
@@ -38,9 +37,11 @@ SLACK_USERJSON_PROFILE_KEY = "profile"
 SLACK_USERJSON_REALNAME_KEY = "real_name"
 # Slack user ids to focus on
 USER_IDS_SUBSET = ["UA7F69DGS"]
+# Filtering criteria for messages
+MIN_MSG_LENGTH: Optional[int] = 15
 # Shuffle/subsample
 SEED = 42
-SAMPLE_PROP: float = .1
+SAMPLE_PROP: float = .12
 # Message separator when written to file (will be used by the sentencizer to
 # separate sentences further.)
 MSG_SEPARATOR = "-|-"
@@ -213,8 +214,7 @@ def clean_msg_infos(
 # ====
 # Load slack's user json
 user_json_path = os.path.join(
-    b2c_io.get_data_sources_path(),
-    SLACK_LOGS_FOLDERNAME,
+    SLACK_LOGS_FOLDERPATH,
     SLACK_USER_JSON_FILENAME
 )
 with open(user_json_path, "r") as f:
@@ -236,7 +236,7 @@ user_id_name_lookup: dict[SlackUserId, SlackRealName] = {
 # Create output file
 # ==================
 out_filepath = os.path.join(
-    OUT_FOLDERPATH,
+    b2c_io.get_data_sources_path(),
     OUT_FILENAME,
 )
 logger.info(f"Prepaer output file: {out_filepath}")
@@ -251,8 +251,7 @@ with open(out_filepath, "w") as f:
 logger.info("Extract and clean slack messages")
 # Where are the slack logs?
 slack_folderpath = os.path.join(
-    b2c_io.get_data_sources_path(),
-    SLACK_LOGS_FOLDERNAME,
+    SLACK_LOGS_FOLDERPATH,
 )
 # Get paths
 logger.info("-- Get paths")
@@ -265,6 +264,10 @@ random.seed(SEED)
 paths = random.sample(population=paths, k=int(SAMPLE_PROP * len(paths)))
 # Going through all logs...
 logger.info(f"-- Extraction")
+if MIN_MSG_LENGTH is not None:
+    logger.info(
+        f"-- (only messages with {MIN_MSG_LENGTH} chars or more are kept)"
+    )
 for path in tqdm(paths):
     #... i.e., all json except for non-log jsons
     if path.name not in ["channels.json", "integration_logs.json",
@@ -278,6 +281,10 @@ for path in tqdm(paths):
         )
         # Keep only msgs in Japanese, remove URLs, replace user ids by names
         msg_infos = clean_msg_infos(msg_infos=msg_infos, user_id_name_lookup=user_id_name_lookup)
+        # Filter out msgs that are too short
+        if MIN_MSG_LENGTH is not None:
+            msg_infos = [info for info in msg_infos if len(info.cleaned_msg) >=
+                     MIN_MSG_LENGTH]
         # Write
         if msg_infos != []:
             text = (

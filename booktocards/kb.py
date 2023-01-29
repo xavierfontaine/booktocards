@@ -196,7 +196,8 @@ class KnowledgeBase:
                 self._save_df(df_name=df_name, is_backup=True)
 
     def add_doc(
-        self, doc: str, doc_name: str, drop_ascii_alphanum_toks: bool
+            self, doc: str, doc_name: str, drop_ascii_alphanum_toks: bool,
+            sep_tok: Optional[str] = None
     ) -> None:
         """Parse a document and add it's voc and sentences to kb
 
@@ -206,6 +207,7 @@ class KnowledgeBase:
                 filename.
             drop_ascii_alphanum_toks (bool): discard tokens that are only ascii
                 alphanum?
+            sep_tok (Optional[str]): special token for sentence separation
         """
         if (
             doc_name
@@ -221,7 +223,7 @@ class KnowledgeBase:
             )
         # Get token and sentence info
         logger.info(f"-- parsing {doc_name=}")
-        parsed_doc = parser.ParseDocument(doc=doc)
+        parsed_doc = parser.ParseDocument(doc=doc, sep_tok=sep_tok)
         token_count_sentid = parsed_doc.tokens
         sentid_sent_toks = parsed_doc.sentences
         # Drop tokens that are pure alphanum if required
@@ -610,7 +612,7 @@ class KnowledgeBase:
                     " kanjis"
                 )
             is_before_max_and_not_null = df.loc[
-                is_items_rows, TO_BE_STUDIED_FROM_DATE_COLNAME
+                :, TO_BE_STUDIED_FROM_DATE_COLNAME
             ].apply(
                 lambda x: False
                 if type(x) is not datetime.date
@@ -782,17 +784,3 @@ class KnowledgeBase:
         # Make into KanjiCard
         kanji_card = kanji_info_to_kanji_card(kanji_info=kanji_info)
         return kanji_card
-
-
-# TODO: remove
-# from booktocards.jj_dicts import ManipulateSanseido
-# from booktocards.tatoeba import ManipulateTatoeba
-# kb = KnowledgeBase()
-# card_1 = kb.make_voc_cards(token="名前", source_name="A1p",
-#            max_source_examples=2,
-#            max_tatoeba_examples=2,
-#            translate_source_ex=False,
-#    sanseido_manipulator=ManipulateSanseido(),
-#    tatoeba_db=ManipulateTatoeba(),
-#    deepl_translator=None,
-# )

@@ -2,11 +2,21 @@ import spacy
 import math
 import tqdm
 import itertools as it
+import logging
 from typing import List, Tuple, Optional
 
 from booktocards.annotations import DictForm, Pos, Token, Sentence
 
 
+# ======
+# Logger
+# ======
+logger = logging.getLogger(__name__)
+
+
+# ====
+# Core
+# ====
 def list_jp_pos_tags():
     """List Spacy's POS tags for Japanese"""
     nlp = spacy.load("ja_core_news_sm")
@@ -49,6 +59,7 @@ class Tokenizer:
 def sentencize(
     doc: str,
     spacy_model: str = "ja_core_news_sm",
+    sep_tok: Optional[str] = None,
     n_lines_per_chunk: Optional[int] = None,
     split_at_linebreak: bool = False,
 ) -> List[Sentence]:
@@ -64,6 +75,8 @@ def sentencize(
     Args:
         doc (str): doc
         spacy_model (str): spacy_model
+        sep_tok (str): special token used to designated chunk separation.
+            If sep_tok is set, `n_lines_per_chunk` won't be used.
         n_lines_per_chunk (Optional[int]): n_lines_per_chunk
         split_at_linebreak (bool): split_at_linebreak
 
@@ -82,13 +95,24 @@ def sentencize(
         ],
     )
     nlp.add_pipe("sentencizer")
-    # Get chunks based on line breaks
-    if n_lines_per_chunk is not None:
+    # Get chunks...
+    if n_lines_per_chunk is not None and sep_tok is None:
+        # ... based on line breaks
+        logger.info(
+            f"Split the document into chunks of {n_lines_per_chunk} lines."
+        )
         doc_chunks = _chunkify_on_linebreaks(
             doc=doc,
             n_lines_per_chunk=n_lines_per_chunk,
         )
+    elif sep_tok is not None:
+        # ... or on a separation token
+        logger.info(
+            f"Split the document into chuncks using the separator {sep_tok}."
+        )
+        doc_chunks = doc.split(sep=sep_tok)
     else:
+        # ... or don't
         doc_chunks = [doc]
     # Sentencize from spacy nlp object
     spacified_doc_chunks = [
@@ -103,7 +127,11 @@ def sentencize(
     # Further sentencize wrt line breaks
     if split_at_linebreak:
         sents = [l for sent in sents for l in sent.splitlines() if l != ""]
+    # Further sentencize wrt sep_tok
+    if sep_tok is not None:
+        sents = [l for sent in sents for l in sent.split(sep_tok) if l != ""]
     return sents
+
 
 
 def _chunkify_on_linebreaks(

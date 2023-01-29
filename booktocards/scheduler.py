@@ -227,7 +227,8 @@ class Scheduler:
             )
 
     def get_studiable_voc(self, min_count: int = 1, sort_seq_id: bool =
-                    False, sort_count: bool = False) -> pd.DataFrame:
+                          False, sort_count: bool = False, source_name:
+                          Optional[SourceName] = None,) -> pd.DataFrame:
         """Return voc not marked in either the kb and the scheduler
 
         Not marked in kb as known/added/suspended/due
@@ -242,6 +243,7 @@ class Scheduler:
             only_not_known=True,
             only_not_suspended=True,
             only_no_study_date=True,
+            source_name=source_name,
         )
         # Remove those below a certain count
         token_not_marked_in_kb_df = token_not_marked_in_kb_df[token_not_marked_in_kb_df[COUNT_COLNAME] >=

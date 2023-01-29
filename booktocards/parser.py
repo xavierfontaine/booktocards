@@ -4,6 +4,7 @@ Parsers for file and documents
 import pandas as pd
 import logging
 from functools import reduce
+from typing import Optional
 import tqdm
 
 from booktocards import sudachi as jp_sudachi
@@ -41,11 +42,12 @@ class ParseDocument:
         sentences (dict[SentenceId, [Sentence, list[Token]]]): `sent` and their associated `lemmas`
     """
 
-    def __init__(self, doc: str):
+    def __init__(self, doc: str, sep_tok: Optional[str] = None):
         self.tokens: dict[Token, [Count, list[SentenceId]]] = []
         self.sentences: dict[
             SentenceId, [Sentence, list[Token]]
         ] = pd.DataFrame()
+        self._sep_tok = sep_tok
         # Parse the doc and ill the above
         self._extract_tokens(doc=doc)
 
@@ -56,7 +58,8 @@ class ParseDocument:
         # Sentencize
         logger.info("-- Sentencize")
         sents = list(
-            jp_spacy.sentencize(doc=doc, n_lines_per_chunk=_N_LINES_PER_CHUNK)
+            jp_spacy.sentencize(doc=doc, n_lines_per_chunk=_N_LINES_PER_CHUNK,
+                                sep_tok=self._sep_tok)
         )
         # Tokenize
         logger.info("-- Tokenize")

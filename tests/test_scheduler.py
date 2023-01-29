@@ -200,7 +200,7 @@ def test_add_to_much_voc_complains(monkeypatch, tmp_path):
         scheduler.add_kanji_for_next_round(kanji="歌", source_name=source_name)
 
 
-def test_get_studiable_voc(monkeypatch, tmp_path):
+def test_get_studiable_voc_1_doc(monkeypatch, tmp_path):
     # Handle temporary folders
     path = tmp_path.resolve()
     path_cards = os.path.join(path, "cards")
@@ -261,6 +261,43 @@ def test_get_studiable_voc(monkeypatch, tmp_path):
     )
     studiable_voc_df = scheduler.get_studiable_voc()
     assert len(studiable_voc_df) == 1
+
+
+def test_get_studiable_voc_2_docs(monkeypatch, tmp_path):
+    # Handle temporary folders
+    path = tmp_path.resolve()
+    path_cards = os.path.join(path, "cards")
+    path_kb = os.path.join(path, "kb")
+    os.mkdir(path_cards)
+    os.mkdir(path_kb)
+    monkeypatch.setattr(booktocards.scheduler, "_cards_dirpath", path_cards)
+    # Init kb and scheduler
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
+    min_days_btwn_kanji_and_voc = 3
+    scheduler = booktocards.scheduler.Scheduler(
+        kb=kb,
+        n_days_study=2,
+        n_cards_days=2,
+        min_days_btwn_kanji_and_voc=min_days_btwn_kanji_and_voc,
+    )
+    # Add doc 1
+    doc1 = "食べる飲む歌う。歌う。感じる。笑う。寝る。"
+    source_name1 = "test_doc1"
+    kb.add_doc(doc=doc1, doc_name=source_name1, drop_ascii_alphanum_toks=False)
+    # Add doc 2
+    doc2 = "眠る？起きる？食べる。"
+    source_name2 = "test_doc2"
+    kb.add_doc(doc=doc2, doc_name=source_name2, drop_ascii_alphanum_toks=False)
+    # Get all voc as studiable
+    studiable_voc_df = scheduler.get_studiable_voc()
+    print(studiable_voc_df)
+    assert len(studiable_voc_df) == 9
+    # Get studiable voc from doc1
+    studiable_voc_df = scheduler.get_studiable_voc(source_name=source_name1)
+    assert len(studiable_voc_df) == 6
+    # Get studiable voc from doc2
+    studiable_voc_df = scheduler.get_studiable_voc(source_name=source_name2)
+    assert len(studiable_voc_df) == 3
 
 
 def test_get_studiable_kanji(monkeypatch, tmp_path):
@@ -383,6 +420,7 @@ def test_end_scheduling(monkeypatch, tmp_path):
         sanseido_manipulator=None,
         tatoeba_db=None,
         deepl_translator=None,
+        for_anki=False,
     )
     # Check the output
     vocab_df = pd.read_csv(filepath_or_buffer=sched_out["vocab"])

@@ -1,9 +1,24 @@
+"""
+Extract and clean slack messages for users USER_IDS_SUBSET.
+
+Important notes
+-  Messages will be separated using MSG_SEPARATOR. This must be used as an
+additionnal sentence separator in 0_app.py
+- Consider using subsampling so that the output file doesn't exceed 1mb.
+  Otherwise, ingestion in other pipes might take log. For simplicity, sampling
+  is done at the file level.
+"""
+#TODO: foutre dans un module spécifique
+from dataclasses import dataclass
 import ftlangdetect
 import json
+import logging
 import os
-from dataclasses import dataclass
-from typing import Annotated, Optional
+from pathlib import Path
+import random
 import re
+from typing import Annotated, Optional
+from tqdm import tqdm
 import warnings
 
 from booktocards import io as b2c_io
@@ -15,12 +30,20 @@ from booktocards import io as b2c_io
 # Path
 SLACK_LOGS_FOLDERNAME = "zeals_slack_2016-01-01_2022-02-17"
 SLACK_USER_JSON_FILENAME = "users.json"
+OUT_FOLDERPATH = "/home/xavier/Documents/"
+OUT_FILENAME = "slack_extract.txt"
 # Slack user json - keys
 SLACK_USERJSON_ID_KEY = "id"
 SLACK_USERJSON_PROFILE_KEY = "profile"
 SLACK_USERJSON_REALNAME_KEY = "real_name"
 # Slack user ids to focus on
 USER_IDS_SUBSET = ["UA7F69DGS"]
+# Shuffle/subsample
+SEED = 42
+SAMPLE_PROP: float = .1
+# Message separator when written to file (will be used by the sentencizer to
+# separate sentences further.)
+MSG_SEPARATOR = "-|-"
 
 
 # ===========
@@ -37,6 +60,15 @@ SlackEntry = Annotated[
 ]
 SlackUserId = Annotated[str, "Slack user ID"]
 SlackRealName = Annotated[str, "Slack user 'real name' field"]
+
+
+# ======
+# Logger
+# ======
+logging.basicConfig(
+    format="[%(levelname)s] %(asctime)s %(message)s", level=logging.DEBUG
+)
+logger = logging.getLogger(__name__)
 
 
 # ============
@@ -80,7 +112,100 @@ def extract_text_info(slack_message: dict) -> MessageInfo:
     )
     return message_info
 
-def clean
+
+def parse_slack_entries(
+    slack_entries: list[SlackEntry],
+    user_ids_subset: Optional[list[SlackUserId]] = None,
+)->list[MessageInfo]:
+    """Parse Slack entries
+
+    Create MessageInfo objects, by 
+    1. excluding deleted messages, changed versions
+    of messages, bot messages etc.
+    2. Keeping only specific users
+
+    Technically, 1 is done by excluding messages with "message subtypes" (see
+    https://slack.com/help/articles/220556107-How-to-read-Slack-data-exports#export-file-contents)
+
+
+    Args:
+        user_ids_subset (list[SlackUserId]): user_ids_subset
+
+    Returns:
+        list[MessageInfo]:
+    """
+    # Keep only messages without subtypes
+    slack_entries = [
+        c
+        for c in slack_entries
+        if (
+            c["type"] == "message"  # keeping only messages
+            and "user" in c.keys()  # from a user
+            and "subtype" not in c  # exlucing message with subtypes
+        )
+    ]
+    # Keep only messages from specified users
+    if user_ids_subset is not None:
+        slack_entries = [c for c in slack_entries if c["user"] in user_ids_subset]
+    # Keep message if plain text, else keep only elements of rich_text_section
+    msg_infos = [extract_text_info(c) for c in slack_entries]
+    return msg_infos
+
+
+def clean_msg_infos(
+    msg_infos: list[MessageInfo],
+    user_id_name_lookup: dict[SlackUserId, SlackRealName],
+)->list[MessageInfo]:
+    """Clean list of MessageInfo
+
+    Cleaner messages are stored in MessageInfo.cleaned_msg. Cleaning steps are:
+    - Keep only messages in Japanese
+    - Remove URLs
+    - Replace user ids by "real" user names
+
+    Args:
+        msg_infos (list[MessageInfo]): msg_infos
+        user_id_name_lookup (dict[SlackUserId, SlackRealName]): user_id_name_lookup
+
+    Returns:
+        list[MessageInfo]:
+    """
+    for info in msg_infos:
+        # Use msg_wo_user_ref because less noise
+        msg = info.msg_wo_user_ref
+        # Approx: replace linebreaks, not supported by ftlangdetect
+        msg = msg.replace("\n", "")
+        # Detect and add info
+        detected = ftlangdetect.detect(text=msg, low_memory=False)
+        info.lang = detected["lang"]
+        info.lang_score = detected["score"]
+    # Drop messages that are not in jp
+    msg_infos = [m for m in msg_infos if m.lang == "ja"]
+    # Get the final version of the message
+    for info in msg_infos:
+        info.cleaned_msg = info.original_msg
+        # Remove embedded URL (not all URLs)
+        info.cleaned_msg = re.sub(pattern="<http.*>", repl="", string=info.cleaned_msg)
+        # Replace user id by user name
+        found_ids = re.findall(
+            pattern="<@[A-Z0-9]*>",
+            string=info.cleaned_msg
+        )
+        found_ids = [i[2: -1] for i in found_ids]
+        for found_id in found_ids:
+            try:
+                info.cleaned_msg = re.sub(
+                    pattern=f"<@{found_id}>",
+                    repl=user_id_name_lookup[found_id],
+                    string=info.cleaned_msg
+                )
+            # If, for some reason, the correspondance isn't found
+            except KeyError:
+                warnings.warn(
+                    f"user id {found_id} not found in the"
+                    " {user_id: name} lookup dict."
+                )
+    return msg_infos
 
 
 # ====
@@ -107,62 +232,57 @@ user_id_name_lookup: dict[SlackUserId, SlackRealName] = {
 }
 
 
-# ==========
-# File-level
-# ==========
-#json_filepath = os.path.join(SLACK_FOLDER, "dev_chapter_rd/2022-02-17.json")
-json_filepath = "/home/xavier/Documents/Git/booktocards/data/in/sources/zeals_slack_2016-01-01_2022-02-17/cd_salon_team/2022-02-14.json"
-with open(json_filepath, "r") as f:
-    slack_entries: list[SlackEntry] = json.load(f)
+# ==================
+# Create output file
+# ==================
+out_filepath = os.path.join(
+    OUT_FOLDERPATH,
+    OUT_FILENAME,
+)
+logger.info(f"Prepaer output file: {out_filepath}")
+# Write to file
+with open(out_filepath, "w") as f:
+    pass
 
-# Keep only messages without subtypes
-slack_entries = [
-    c
-    for c in slack_entries
-    if (
-        c["type"] == "message"  # keeping only messages
-        and "subtype"
-        not in c  # exlucing deleted msgs, changed versions of messages, bot msgs, etc., see "message subtypes" in https://slack.com/help/articles/220556107-How-to-read-Slack-data-exports#export-file-contents
-    )
-]
-# Keep only messages from user
-slack_entries = [c for c in slack_entries if c["user"] in USER_IDS_SUBSET]
-# Keep message if plain text, else keep only elements of rich_text_section
-msg_infos = [extract_text_info(c) for c in slack_entries]
-# Add language information
-for info in msg_infos:
-    # Use msg_wo_user_ref because less noise
-    msg = info.msg_wo_user_ref
-    # Approx: replace linebreaks, not supported by ftlangdetect
-    msg = msg.replace("\n", "")
-    # Detect and add info
-    detected = ftlangdetect.detect(text=msg, low_memory=False)
-    info.lang = detected["lang"]
-    info.lang_score = detected["score"]
-# Drop messages that are not in jp
-msg_infos = [m for m in msg_infos if m.lang == "ja"]
-# Get the final version of the message
-for info in msg_infos:
-    info.cleaned_msg = info.original_msg
-    # Remove embedded URL (not all URLs)
-    info.cleaned_msg = re.sub(pattern="<http.*>", repl="", string=info.cleaned_msg)
-    # Replace user id by user name
-    for user_id in USER_IDS_SUBSET:
-        found_ids = re.findall(
-            pattern="<@[A-Z0-9]*>",
-            string=info.cleaned_msg
+
+# ======================
+# Extract slack messages
+# ======================
+logger.info("Extract and clean slack messages")
+# Where are the slack logs?
+slack_folderpath = os.path.join(
+    b2c_io.get_data_sources_path(),
+    SLACK_LOGS_FOLDERNAME,
+)
+# Get paths
+logger.info("-- Get paths")
+paths = list(Path(slack_folderpath).rglob('*.json'))
+if SAMPLE_PROP == 1.:
+    logger.info("-- Shuffle files")
+else:
+    logger.info(f"-- Shuffle and keep {SAMPLE_PROP} of the files")
+random.seed(SEED)
+paths = random.sample(population=paths, k=int(SAMPLE_PROP * len(paths)))
+# Going through all logs...
+logger.info(f"-- Extraction")
+for path in tqdm(paths):
+    #... i.e., all json except for non-log jsons
+    if path.name not in ["channels.json", "integration_logs.json",
+                         "users.json"]:
+        with path.open("r") as f:
+            slack_entries: list[SlackEntry] = json.load(f)
+        # Parse slack entries, keep only users in USER_IDS_SUBSET
+        msg_infos = parse_slack_entries(
+            slack_entries=slack_entries,
+            user_ids_subset=USER_IDS_SUBSET,
         )
-        found_ids = [i[2: -1] for i in found_ids]
-        for found_id in found_ids:
-            try:
-                info.cleaned_msg = re.sub(
-                    pattern=f"<@{found_id}>",
-                    repl=user_id_name_lookup[found_id],
-                    string=info.cleaned_msg
-                )
-            # If, for some reason, the correspondance isn't found
-            except KeyError:
-                warnings.warn(
-                    f"user id {found_id} not found in the"
-                    " {user_id: name} lookup dict."
-                )
+        # Keep only msgs in Japanese, remove URLs, replace user ids by names
+        msg_infos = clean_msg_infos(msg_infos=msg_infos, user_id_name_lookup=user_id_name_lookup)
+        # Write
+        if msg_infos != []:
+            text = (
+                MSG_SEPARATOR.join([info.cleaned_msg for info in msg_infos])
+                + MSG_SEPARATOR
+            )
+            with open(out_filepath, "a") as f:
+                f.write(text)

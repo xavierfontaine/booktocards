@@ -124,24 +124,54 @@ def test_set_to_known_works(tmp_path):
     assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 2
 
 
-def test_automatically_set_known_for_new_doc(tmp_path):
+@pytest.mark.parametrize("set_voc_tag", ['is_known', 'is_added_to_anki', 'to_be_studied_from'])
+def test_automatically_set_known_for_new_doc(tmp_path, set_voc_tag):
     # Change path where kb will be saved
     path = tmp_path.resolve()
     # Add doc
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
-    kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
+    doc_name = "test_doc"
+    kb.add_doc(doc=doc, doc_name=doc_name, drop_ascii_alphanum_toks=False)
     # Set to known
-    kb.set_item_to_known(
-        item_value="食べる",
-        item_colname=TOKEN_COLNAME,
-        table_name=TOKEN_TABLE_NAME,
-    )
-    # Should be one set to known
-    assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 1
-    # Add a 2nd doc (the same). Should be 2 set to known
+    if set_voc_tag == "is_known":
+        kb.set_item_to_known(
+            item_value="食べる",
+            item_colname=TOKEN_COLNAME,
+            table_name=TOKEN_TABLE_NAME,
+        )
+    elif set_voc_tag == "is_added_to_anki":
+        kb.set_item_to_added_to_anki(
+            item_value="食べる",
+            source_name=doc_name,
+            item_colname=TOKEN_COLNAME,
+            table_name=TOKEN_TABLE_NAME,
+        )
+    elif set_voc_tag == "to_be_studied_from":
+        kb.set_study_from_date_for_token_source(
+            token_value="食べる",
+            source_name=doc_name,
+            date=datetime.date.today(),
+        )
+    else:
+        raise ValueError("Unexpected test parametrization")
+    # Test current number of known
+    if set_voc_tag == "is_known":
+        assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 1
+    else:
+        assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 0
+    # Add a 2nd doc (the same). Check number of known.
     kb.add_doc(doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False)
-    assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 2
+    if set_voc_tag == "is_known":
+        assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 2
+    else:
+        assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 1
+    # Add a 3nd doc (the same). Check number of known.
+    kb.add_doc(doc=doc, doc_name="test_doc3", drop_ascii_alphanum_toks=False)
+    if set_voc_tag == "is_known":
+        assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 3
+    else:
+        assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 2
 
 
 def test_set_added_to_anki_works(tmp_path):

@@ -346,17 +346,37 @@ class KnowledgeBase:
                     " as other columns."
                 )
         # For an added row, if the value for the index exist and associated to
-        # a known value, then set know to True
+        # a known value/added to Anki/has a set due date, then set know to True
         if item_colname is not None:
             for obs_i, index_value in enumerate(items_to_add[item_colname]):
+                # Check conditions separetely
                 table = self.__dict__[table_name]
-                value_exists_and_known = (
-                    table[item_colname] == index_value
-                ) & (table[IS_KNOWN_COLNAME] == True)
-                if any(value_exists_and_known):
+                value_exists = table[item_colname] == index_value
+                value_know = table[IS_KNOWN_COLNAME] == True
+                value_added_to_anki = table[IS_ADDED_TO_ANKI_COLNAME] == True
+                if table_name == TOKEN_TABLE_NAME:
+                    value_to_be_studied = table[TO_BE_STUDIED_FROM_DATE_COLNAME].apply(
+                        lambda x: False
+                        if type(x) is not datetime.date
+                        else True
+                    )
+                # Put the conditions together
+                if table_name == TOKEN_TABLE_NAME:
+                    value_exists_and_marked = value_exists & (
+                        value_know | value_added_to_anki | value_to_be_studied
+                    )
+                elif table_name == KANJI_TABLE_NAME:
+                    value_exists_and_marked = value_exists & (
+                        value_know | value_added_to_anki
+                    )
+                else:
+                    raise ValueError("Unexpected table name.")
+                # If so...
+                if any(value_exists_and_marked):
                     logger.debug(
                         f"{index_value} exists in {table_name}[{item_colname}]"
-                        " and is marked as known. Mark it as"
+                        " and is marked as known/added or has a 'from' study "
+                        "date (if token table). Mark it as"
                         " know in the added items as well."
                     )
                     items_to_add[IS_KNOWN_COLNAME][obs_i] = True

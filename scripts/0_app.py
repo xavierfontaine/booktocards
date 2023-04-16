@@ -138,8 +138,6 @@ token_df = kb[TOKEN_TABLE_NAME]
 kanji_df = kb[KANJI_TABLE_NAME]
 seq_df = kb[SEQ_TABLE_NAME]
 
-st.write(token_df.tail())
-
 
 # ================
 # Manage documents
@@ -333,6 +331,21 @@ doc_name = st.selectbox(
 )
 sort_by_seq_id = st.checkbox(label="Sort by id of first sequence", value=True)
 sort_by_count = st.checkbox(label="Sort by count", value=True)
+kb: KnowledgeBase = st.session_state["kb"]
+seq_df = kb[SEQ_TABLE_NAME]
+st.write(seq_df[seq_df["seq_id"] == 418])
+#token_df=kb.get_items(
+#    table_name=TOKEN_TABLE_NAME,
+#    only_not_added=False,
+#    only_not_known=False,
+#    only_not_suspended=False,
+#    only_no_study_date=False, 
+#    #item_value="頷く",
+#    item_colname=TOKEN_COLNAME,
+#    source_name=doc_name, 
+#    max_study_date=None
+#)
+#st.write(token_df)
 # Display studiable items
 if len(scheduler.vocab_w_uncertain_status_df) == 0:
     st.subheader("Manage vocabulary")

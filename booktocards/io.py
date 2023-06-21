@@ -62,3 +62,11 @@ def get_secrets() -> dict:
     with open(filepath, "r") as f:
         secrets = yaml.safe_load(stream=f)
     return secrets
+
+
+def get_conf(filename) -> dict:
+    """Get conf/`filename`"""
+    filepath = os.path.join(get_conf_path(), filename)
+    with open(filepath, "r") as f:
+        conf = yaml.safe_load(stream=f)
+    return conf

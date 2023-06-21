@@ -6,6 +6,7 @@
 */.pytest_cache/*
 
 conf/secrets.yaml
+conf/extractor.yaml
 data/in/sources/*
 !data/in/sources/.gitkeep
 data/in/dictionaries/*

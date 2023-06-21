@@ -1,5 +1,5 @@
 """
-Extract and clean slack messages for users USER_IDS_SUBSET.
+Extract and clean slack messages for users user_ids_subset.
 
 Important notes
 -  Messages will be separated using MSG_SEPARATOR. This must be used as an
@@ -29,14 +29,11 @@ from booktocards import io as b2c_io
 # =========
 # Path
 SLACK_USER_JSON_FILENAME = "users.json"
-SLACK_LOGS_FOLDERPATH = "/home/xavier/Documents/data/zeals_slack_2016-01-01_2022-02-17"
 OUT_FILENAME = "slack_extract.txt"
 # Slack user json - keys
 SLACK_USERJSON_ID_KEY = "id"
 SLACK_USERJSON_PROFILE_KEY = "profile"
 SLACK_USERJSON_REALNAME_KEY = "real_name"
-# Slack user ids to focus on
-USER_IDS_SUBSET = ["UA7F69DGS"]
 # Filtering criteria for messages
 MIN_MSG_LENGTH: Optional[int] = 15
 # Shuffle/subsample
@@ -212,9 +209,13 @@ def clean_msg_infos(
 # ====
 # Load
 # ====
+# Get path to folder log and user 
+conf = b2c_io.get_conf("extractor.yaml")
+slack_logs_folderpath = conf["slack_logs_folderpath"]
+user_ids_subset = conf["user_ids_subset"]
 # Load slack's user json
 user_json_path = os.path.join(
-    SLACK_LOGS_FOLDERPATH,
+    slack_logs_folderpath,
     SLACK_USER_JSON_FILENAME
 )
 with open(user_json_path, "r") as f:
@@ -251,7 +252,7 @@ with open(out_filepath, "w") as f:
 logger.info("Extract and clean slack messages")
 # Where are the slack logs?
 slack_folderpath = os.path.join(
-    SLACK_LOGS_FOLDERPATH,
+    slack_logs_folderpath,
 )
 # Get paths
 logger.info("-- Get paths")
@@ -274,10 +275,10 @@ for path in tqdm(paths):
                          "users.json"]:
         with path.open("r") as f:
             slack_entries: list[SlackEntry] = json.load(f)
-        # Parse slack entries, keep only users in USER_IDS_SUBSET
+        # Parse slack entries, keep only users in user_ids_subset
         msg_infos = parse_slack_entries(
             slack_entries=slack_entries,
-            user_ids_subset=USER_IDS_SUBSET,
+            user_ids_subset=user_ids_subset,
         )
         # Keep only msgs in Japanese, remove URLs, replace user ids by names
         msg_infos = clean_msg_infos(msg_infos=msg_infos, user_id_name_lookup=user_id_name_lookup)

@@ -1,0 +1,17 @@
+from typing import Annotated, Any
+
+ColName = Annotated[str, "Column name"]
+Count = Annotated[int, "Count"]
+Definition = Annotated[str, "Definition"]
+DictForm = Annotated[str, "Dictionary form of the morpheme"]
+DictEntry = Annotated[any, "Dictionary entry (content depends on dictionary)"]
+FilePath = Annotated[str, "File path"]
+Kanji = Annotated[str, "Kanji"]
+Pos = Annotated[str, "Part-of-speech"]
+Reading = Annotated[str, "Reading"]
+Sentence = Annotated[str, "Sentence"]
+SentenceId = Annotated[int, "Sentence id"]
+SourceName = Annotated[str, "Source name"]
+SubPos = Annotated[str, "Sub-compoment of a Sudachi POS"]
+Token = Annotated[str, "Token"]
+Values = Annotated[list[Any], "Values"]

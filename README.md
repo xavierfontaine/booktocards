@@ -14,27 +14,3 @@ Learning Japanese kanjis and vocabulary from any material.
 ```bash
 streamlit run scripts/1_app.py
 ```
-
-## Functionalities
-Creates Japanese flashcards from material.
-
-### UI 
-* Upload of user material → automatic parsing and storage (lemmas, kanjis, sentences.)
-* Ordering of lemma by text frequency or order of appearance.
-    * User knowledge is stored → knowned/studied lemmas are not proposed.
-* User selection of lemmas to learn.
-    * Kanji knowledge of composing lemmas is checked.
-    * Unknown kanjis are prioritized, associated lemmas are learnable 3 weeks studying kanji.
-* Generation of flashcards from learning list.
-
-### Generated cards
-Populated fields
-* Writings and readings.
-* English and Japanese definitions (jamdict, sanseido.)
-* Commonness (count in material, rarity, JLPT level.)
-* Examples
-    * From material + automatic translation.
-    * From the tatoeba project.
-
-### Misc
-* Parser for slack logs.

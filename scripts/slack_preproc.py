@@ -8,7 +8,6 @@ additionnal sentence separator in 0_app.py
   Otherwise, ingestion in other pipes might take log. For simplicity, sampling
   is done at the file level.
 """
-#TODO: foutre dans un module spécifique
 from dataclasses import dataclass
 import ftlangdetect
 import json

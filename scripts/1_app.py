@@ -34,6 +34,7 @@ from booktocards.scheduler import Scheduler, KanjiNotKnownError, EnoughItemsAdde
 # =========
 # Functions
 # =========
+# TODO: modularize
 def make_ag(df: pd.DataFrame) -> AgGridReturn:
     """Make an ag grid from a DataFrame"""
     grid_option_builder = GridOptionsBuilder.from_dataframe(df)
@@ -91,6 +92,7 @@ KANJI_CARD_SOURCE_ATTR_NAME = "source_name_str"
 # Replacement for linebreaks in examples
 EX_LINEBREAK_REPL = " // "
 
+
 # ==================
 # Init session state
 # ==================
@@ -112,21 +114,6 @@ for df_name in [
 ]:
     if df_name not in st.session_state:
         st.session_state[df_name] = pd.DataFrame()
-# if "cards_w_date" not in st.session_state:
-#    # Pull reserve of tokens to be studied
-#    kb: KnowledgeBase = st.session_state["kb"]
-#    print(kb[TOKEN_TABLE_NAME])
-#    toks: pd.DataFrame = kb[TOKEN_TABLE_NAME][
-#        (~ kb[TOKEN_TABLE_NAME][TO_BE_STUDIED_FROM_DATE_COLNAME].isnull()) &
-#        (~ kb[TOKEN_TABLE_NAME][IS_ADDED_TO_ANKI_COLNAME])
-#    ]
-#    tok_cards = [
-#        make_voc_cards_from_query(token=tok, source_name=source,
-#            translate_source_ex=False, session_state=st.session_state)
-#        for tok, source in toks[[TOKEN_COLNAME, SOURCE_NAME_COLNAME]].values
-#    ]
-#    st.session_state["cards_w_date"] = tok_cards
-
 
 
 # ================

@@ -133,7 +133,6 @@ def sentencize(
     return sents
 
 
-
 def _chunkify_on_linebreaks(
     doc: str,
     n_lines_per_chunk: int,

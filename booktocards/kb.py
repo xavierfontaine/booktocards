@@ -196,10 +196,13 @@ class KnowledgeBase:
                 self._save_df(df_name=df_name, is_backup=True)
 
     def add_doc(
-            self, doc: str, doc_name: str, drop_ascii_alphanum_toks: bool,
-            sep_tok: Optional[str] = None
+        self,
+        doc: str,
+        doc_name: str,
+        drop_ascii_alphanum_toks: bool,
+        sep_tok: Optional[str] = None,
     ) -> None:
-        """Parse a document and add it's voc and sentences to kb
+        """Parse a document and add its voc and sentences to kb
 
         Args:
             doc (str): doc
@@ -209,18 +212,18 @@ class KnowledgeBase:
                 alphanum?
             sep_tok (Optional[str]): special token for sentence separation
         """
-        if (
-            doc_name
-            in self.__dict__[TOKEN_TABLE_NAME][SOURCE_NAME_COLNAME].values
-            or doc_name
-            in self.__dict__[KANJI_TABLE_NAME][SOURCE_NAME_COLNAME].values
-            or doc_name
-            in self.__dict__[SEQ_TABLE_NAME][SOURCE_NAME_COLNAME].values
-        ):
-            raise ValueError(
-                f"Trying to add {doc_name=} to the kb, but already exists. Use"
-                " self.remove_doc if needed."
-            )
+        # if (
+        #     doc_name
+        #     in self.__dict__[TOKEN_TABLE_NAME][SOURCE_NAME_COLNAME].values
+        #     or doc_name
+        #     in self.__dict__[KANJI_TABLE_NAME][SOURCE_NAME_COLNAME].values
+        #     or doc_name
+        #     in self.__dict__[SEQ_TABLE_NAME][SOURCE_NAME_COLNAME].values
+        # ):
+        #     raise ValueError(
+        #         f"Trying to add {doc_name=} to the kb, but already exists. Use"
+        #         " self.remove_doc if needed."
+        #     )
         # Get token and sentence info
         logger.info(f"-- parsing {doc_name=}")
         parsed_doc = parser.ParseDocument(doc=doc, sep_tok=sep_tok)
@@ -345,6 +348,23 @@ class KnowledgeBase:
                     f"Column {col} in data_dict doesn't have the same length"
                     " as other columns."
                 )
+        # Don't add items that have already been added to the table for this source
+        if item_colname is not None:
+            table = self.__dict__[table_name]
+            # Collect index of such items
+            items_to_drop_idx = []
+            for obs_i, index_value in enumerate(items_to_add[item_colname]):
+                source_name = items_to_add[SOURCE_NAME_COLNAME][obs_i]
+                source_subtable = table[
+                    table[SOURCE_NAME_COLNAME] == source_name
+                ]
+                if index_value in source_subtable[item_colname].values:
+                    items_to_drop_idx.append(obs_i)
+            # Remove those items
+            items_to_drop_idx.reverse()
+            for obs_i in items_to_drop_idx:
+                for k in items_to_add.keys():
+                    items_to_add[k].pop(obs_i)
         # For an added row, if the value for the index exist and associated to
         # a known value/added to Anki/has a set due date, then set know to True
         if item_colname is not None:
@@ -355,7 +375,9 @@ class KnowledgeBase:
                 value_know = table[IS_KNOWN_COLNAME] == True
                 value_added_to_anki = table[IS_ADDED_TO_ANKI_COLNAME] == True
                 if table_name == TOKEN_TABLE_NAME:
-                    value_to_be_studied = table[TO_BE_STUDIED_FROM_DATE_COLNAME].apply(
+                    value_to_be_studied = table[
+                        TO_BE_STUDIED_FROM_DATE_COLNAME
+                    ].apply(
                         lambda x: False
                         if type(x) is not datetime.date
                         else True
@@ -381,12 +403,13 @@ class KnowledgeBase:
                     )
                     items_to_add[IS_KNOWN_COLNAME][obs_i] = True
         # Add the values
-        self.__dict__[table_name] = pd.concat(
-            [
-                self.__dict__[table_name],
-                pd.DataFrame(items_to_add),
-            ]
-        )
+        if all(len(l) > 0 for l in items_to_add.values()):
+            self.__dict__[table_name] = pd.concat(
+                [
+                    self.__dict__[table_name],
+                    pd.DataFrame(items_to_add),
+                ]
+            )
 
     def set_item_to_known(
         self,
@@ -761,7 +784,9 @@ class KnowledgeBase:
             ]
         # Make card
         cards = token_info_to_voc_cards(
-            token_info=token_info, ex_linebreak_repl=ex_linebreak_repl, source_name=source_name
+            token_info=token_info,
+            ex_linebreak_repl=ex_linebreak_repl,
+            source_name=source_name,
         )
         # Return
         return cards

@@ -61,7 +61,9 @@ def test_add_voc_with_known_kanjis(monkeypatch, tmp_path):
         scheduler.add_vocab_of_interest(token="食べる", source_name=source_name)
     # Put as "for next round" a word for which kanji is clearly known
     kb.set_item_to_known(
-        item_value="飲", item_colname=KANJI_COLNAME, table_name=KANJI_TABLE_NAME
+        item_value="飲",
+        item_colname=KANJI_COLNAME,
+        table_name=KANJI_TABLE_NAME,
     )
     scheduler.add_vocab_for_next_round(token="飲む", source_name=source_name)
     assert len(scheduler.vocab_for_next_round_df) == 1
@@ -194,7 +196,9 @@ def test_add_to_much_voc_complains(monkeypatch, tmp_path):
     scheduler.add_kanji_for_next_round(kanji="飲", source_name=source_name)
     with pytest.raises(EnoughItemsAddedError):
         scheduler.set_kanji_to_add_to_known(kanji="感")
-        scheduler.add_vocab_for_next_round(token="感じる", source_name=source_name)
+        scheduler.add_vocab_for_next_round(
+            token="感じる", source_name=source_name
+        )
     # Try adding a kanji
     with pytest.raises(EnoughItemsAddedError):
         scheduler.add_kanji_for_next_round(kanji="歌", source_name=source_name)
@@ -431,30 +435,56 @@ def test_end_scheduling(monkeypatch, tmp_path):
     token_df = kb[TOKEN_TABLE_NAME]
     kanji_df = kb[KANJI_TABLE_NAME]
     # Check 食 as to add to known
-    assert (kanji_df.loc[kanji_df[KANJI_COLNAME] == "食",
-            IS_KNOWN_COLNAME]).all()
+    assert (
+        kanji_df.loc[kanji_df[KANJI_COLNAME] == "食", IS_KNOWN_COLNAME]
+    ).all()
     # Check 食べる for next round
-    assert (token_df.loc[token_df[TOKEN_COLNAME] == "食べる",
-        IS_ADDED_TO_ANKI_COLNAME]).all()
+    assert (
+        token_df.loc[
+            token_df[TOKEN_COLNAME] == "食べる", IS_ADDED_TO_ANKI_COLNAME
+        ]
+    ).all()
     # Check 飲 to next round
-    assert (kanji_df.loc[kanji_df[KANJI_COLNAME] == "飲",
-        IS_ADDED_TO_ANKI_COLNAME]).all()
+    assert (
+        kanji_df.loc[kanji_df[KANJI_COLNAME] == "飲", IS_ADDED_TO_ANKI_COLNAME]
+    ).all()
     # Check 飲む to round after next
-    assert not (token_df.loc[token_df[TOKEN_COLNAME] == "飲む",
-        IS_ADDED_TO_ANKI_COLNAME]).all()
-    assert not (token_df.loc[token_df[TOKEN_COLNAME] == "飲む",
-        TO_BE_STUDIED_FROM_DATE_COLNAME]).isnull().any()
+    assert not (
+        token_df.loc[token_df[TOKEN_COLNAME] == "飲む", IS_ADDED_TO_ANKI_COLNAME]
+    ).all()
+    assert (
+        not (
+            token_df.loc[
+                token_df[TOKEN_COLNAME] == "飲む",
+                TO_BE_STUDIED_FROM_DATE_COLNAME,
+            ]
+        )
+        .isnull()
+        .any()
+    )
     # Check 歌う is nowhere
-    assert not (token_df.loc[token_df[TOKEN_COLNAME] == "歌う",
-        IS_ADDED_TO_ANKI_COLNAME]).all()
+    assert not (
+        token_df.loc[token_df[TOKEN_COLNAME] == "歌う", IS_ADDED_TO_ANKI_COLNAME]
+    ).all()
     # Check 感 to add to suspended
-    assert (kanji_df.loc[kanji_df[KANJI_COLNAME] == "感",
-            IS_SUPSENDED_FOR_SOURCE_COLNAME]).all()
+    assert (
+        kanji_df.loc[
+            kanji_df[KANJI_COLNAME] == "感", IS_SUPSENDED_FOR_SOURCE_COLNAME
+        ]
+    ).all()
     # Check 感じる to add to known
-    assert not (token_df.loc[token_df[TOKEN_COLNAME] == "感じる",
-        IS_ADDED_TO_ANKI_COLNAME]).any()
-    assert (token_df.loc[token_df[TOKEN_COLNAME] == "感じる",
-        IS_KNOWN_COLNAME]).all()
+    assert not (
+        token_df.loc[
+            token_df[TOKEN_COLNAME] == "感じる", IS_ADDED_TO_ANKI_COLNAME
+        ]
+    ).any()
+    assert (
+        token_df.loc[token_df[TOKEN_COLNAME] == "感じる", IS_KNOWN_COLNAME]
+    ).all()
     # Check 笑う to add tu suspended
-    assert (token_df.loc[token_df[IS_SUPSENDED_FOR_SOURCE_COLNAME] == "笑う",
-        IS_KNOWN_COLNAME]).all()
+    assert (
+        token_df.loc[
+            token_df[IS_SUPSENDED_FOR_SOURCE_COLNAME] == "笑う",
+            IS_KNOWN_COLNAME,
+        ]
+    ).all()

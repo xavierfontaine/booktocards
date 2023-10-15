@@ -421,11 +421,11 @@ class Scheduler:
                 " date."
             )
         # For each row:
-        for idx in token_df.index:
+        for i in range(token_df.shape[0]):
             # Get kanjis that are not known or added
             kanji_not_known_added_schedtoknown = (
                 self.get_kanjis_sources_from_token_df(
-                    token_df=token_df.loc[idx].to_frame().T,
+                    token_df=token_df.iloc[i].to_frame().T,
                     only_not_added=True,
                     only_not_known=True,
                     only_not_suspended=False,
@@ -437,15 +437,15 @@ class Scheduler:
             # If all kanjis are known, trigger add_vocab_for_next_round
             if len(kanji_not_known_added_schedtoknown) == 0:
                 self.add_vocab_for_next_round(
-                    token=token_df.loc[idx, TOKEN_COLNAME],
-                    source_name=token_df.loc[idx, SOURCE_NAME_COLNAME],
+                    token=token_df.loc[i][TOKEN_COLNAME],
+                    source_name=token_df.iloc[i][SOURCE_NAME_COLNAME],
                 )
             # Else, add to self.vocab_w_uncertain_status_df
             else:
                 self.vocab_w_uncertain_status_df = pd.concat(
                     [
                         self.vocab_w_uncertain_status_df,
-                        token_df.loc[idx].to_frame().T,
+                        token_df.iloc[i].to_frame().T,
                     ]
                 )
 

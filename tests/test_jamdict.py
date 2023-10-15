@@ -37,5 +37,7 @@ class TestDropUnfrequentReadings(unittest.TestCase):
         exp_kanji_out = entry.kanji_forms
         exp_kana_out = [entry.kana_forms[0]]
         out = drop_unfrequent_readings(entry=entry)
-        assert exp_kanji_out == out.kanji_forms
-        assert exp_kana_out == out.kana_forms
+        assert len(exp_kanji_out) == len(out.kanji_forms) == 1
+        assert exp_kanji_out[0].__dict__ == out.kanji_forms[0].__dict__
+        assert len(exp_kana_out) == len(out.kana_forms) == 1
+        assert exp_kana_out[0].__dict__ == out.kana_forms[0].__dict__

@@ -355,7 +355,6 @@ sort_by_seq_id = st.checkbox(label="Sort by id of first sequence", value=True)
 sort_by_count = st.checkbox(label="Sort by count", value=True)
 kb: KnowledgeBase = st.session_state["kb"]
 seq_df = kb[SEQ_TABLE_NAME]
-st.write(seq_df[seq_df["seq_id"] == 418])
 # token_df=kb.get_items(
 #    table_name=TOKEN_TABLE_NAME,
 #    only_not_added=False,

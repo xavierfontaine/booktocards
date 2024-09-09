@@ -12,8 +12,6 @@ from booktocards.kb import (
     SEQ_TABLE_NAME,
     TOKEN_COLNAME,
     KANJI_COLNAME,
-    SEQ_COLNAME,
-    SEQ_ID_COLNAME,
     IS_KNOWN_COLNAME,
     IS_ADDED_TO_ANKI_COLNAME,
     IS_SUPSENDED_FOR_SOURCE_COLNAME,
@@ -86,24 +84,6 @@ def test_adding_twice_same_doc_adds_items_once(tmp_path):
     # Make sure that IS_KNOWN_COLNAME is False
     for table_name in [TOKEN_TABLE_NAME, KANJI_TABLE_NAME]:
         assert kb_dict_1st_add[table_name].equals(kb_dict_2nd_add[table_name])
-
-
-def test_adding_entries_on_same_doc_works(tmp_path):
-    # Change path where kb will be saved
-    path = tmp_path.resolve()
-    # Add doc
-    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
-    doc1 = "食べる飲む"
-    kb.add_doc(doc=doc1, doc_name="test_doc", drop_ascii_alphanum_toks=False)
-    # Add a 2nd doc
-    doc2 = "眠る"
-    kb.add_doc(doc=doc2, doc_name="test_doc", drop_ascii_alphanum_toks=False)
-    # Check all tokens, kanjis and seqs have been added
-    assert set(kb.__dict__[TOKEN_TABLE_NAME][TOKEN_COLNAME].to_list()) == set(["食べる", "飲む", "眠る"])
-    assert set(kb.__dict__[KANJI_TABLE_NAME][KANJI_COLNAME].to_list()) == set(["食", "飲", "眠"])
-    assert kb.__dict__[SEQ_TABLE_NAME][SEQ_COLNAME].to_list() == [doc1, doc2]
-    # Check seq ids make sense
-    assert kb.__dict__[SEQ_TABLE_NAME][SEQ_ID_COLNAME].to_list() == [0, 1]
 
 
 def test_remove_doc_works(tmp_path):

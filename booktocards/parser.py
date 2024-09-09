@@ -35,11 +35,6 @@ class ParseDocument:
 
     Arguments
         doc (str)
-        sep_tok (Optional[str]): token separated sequences. Used to split their
-        document before using spaCy. Help mitigating spaCy's restrictions only
-        document length.
-        start_index (Optional[str]): the returned sequence ids will start from
-        `start_index`.
 
     Attributes
         tokens (dict[Token, [Count, list[SentenceId]]]): list of unique tokens in
@@ -47,17 +42,18 @@ class ParseDocument:
         sentences (dict[SentenceId, [Sentence, list[Token]]]): `sent` and their associated `lemmas`
     """
 
-    def __init__(
-        self, doc: str, sep_tok: Optional[str] = None, start_index: Optional[int] = None
-    ):
+    def __init__(self, doc: str, sep_tok: Optional[str] = None):
         self.tokens: dict[Token, [Count, list[SentenceId]]] = []
-        self.sentences: dict[SentenceId, [Sentence, list[Token]]] = pd.DataFrame()
+        self.sentences: dict[
+            SentenceId, [Sentence, list[Token]]
+        ] = pd.DataFrame()
         self._sep_tok = sep_tok
-        self._start_index = start_index
-        # Parse the doc and attach tokens & sentences to the above
+        # Parse the doc and ill the above
         self._extract_tokens(doc=doc)
 
-    def _extract_tokens(self, doc: str) -> None:
+    def _extract_tokens(
+        self, doc: str
+    ) -> list[Token, Count, list[SentenceId]]:
         """Fill self.tokens and self.sentences"""
         # Sentencize
         logger.info("-- Sentencize")
@@ -71,7 +67,9 @@ class ParseDocument:
         # Tokenize
         logger.info("-- Tokenize")
         tokenizer = jp_sudachi.Tokenizer()
-        tokenized_sents = [tokenizer.tokenize(doc=sent) for sent in tqdm.tqdm(sents)]
+        tokenized_sents = [
+            tokenizer.tokenize(doc=sent) for sent in tqdm.tqdm(sents)
+        ]
         # Filter on pos
         _ = [
             tokenizer.filter_on_pos(
@@ -80,12 +78,11 @@ class ParseDocument:
             for sent in tokenized_sents
         ]
         # Keep only lemmas
-        sents_lemmas = [[lemma for lemma, _ in sent] for sent in tokenized_sents]
+        sents_lemmas = [
+            [lemma for lemma, _ in sent] for sent in tokenized_sents
+        ]
         # Temporary store for full sentences and their lemmas
         sents_df = pd.DataFrame({"sent": sents, "lemmas": sents_lemmas})
-        # Shift the index if required
-        if self._start_index is not None:
-            sents_df.index = range(self._start_index, self._start_index + len(sents_df))
         # Get unique (lemma, count)
         logger.info("Get unique (lemma, count)")
         lemmas = reduce(lambda x, y: x + y, sents_df["lemmas"].to_list())

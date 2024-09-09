@@ -212,19 +212,21 @@ class KnowledgeBase:
                 alphanum?
             sep_tok (Optional[str]): special token for sentence separation
         """
-        logger.info(f"-- parsing {doc_name=}")
-        # Sentence id from which extracted sentences should start from.
-        seq_table_index = self.__dict__[SEQ_TABLE_NAME].index
-        if len(seq_table_index) == 0:
-            start_index = 0
-        else:
-            start_index = seq_table_index.max() + 1
+        # if (
+        #     doc_name
+        #     in self.__dict__[TOKEN_TABLE_NAME][SOURCE_NAME_COLNAME].values
+        #     or doc_name
+        #     in self.__dict__[KANJI_TABLE_NAME][SOURCE_NAME_COLNAME].values
+        #     or doc_name
+        #     in self.__dict__[SEQ_TABLE_NAME][SOURCE_NAME_COLNAME].values
+        # ):
+        #     raise ValueError(
+        #         f"Trying to add {doc_name=} to the kb, but already exists. Use"
+        #         " self.remove_doc if needed."
+        #     )
         # Get token and sentence info
-        parsed_doc = parser.ParseDocument(
-            doc=doc,
-            sep_tok=sep_tok,
-            start_index=start_index
-        )
+        logger.info(f"-- parsing {doc_name=}")
+        parsed_doc = parser.ParseDocument(doc=doc, sep_tok=sep_tok)
         token_count_sentid = parsed_doc.tokens
         sentid_sent_toks = parsed_doc.sentences
         # Drop tokens that are pure alphanum if required
@@ -323,7 +325,8 @@ class KnowledgeBase:
                 entry, then it will take the value of IS_KNOWN_COLNAME from
                 that other entry. For instance, if we add a token frm a new
                 source, but that token already existed in the database and was
-                marked as known, then the new entry will also be considered known.
+                marked as known, then the new entry will also be
+                considered known.
 
         Returns:
             None
@@ -349,23 +352,23 @@ class KnowledgeBase:
         if item_colname is not None:
             table = self.__dict__[table_name]
             # Collect index of such items
-            items_to_drop_pos = []
-            for obs_pos, index_value in enumerate(items_to_add[item_colname]):
-                source_name = items_to_add[SOURCE_NAME_COLNAME][obs_pos]
+            items_to_drop_idx = []
+            for obs_i, index_value in enumerate(items_to_add[item_colname]):
+                source_name = items_to_add[SOURCE_NAME_COLNAME][obs_i]
                 source_subtable = table[
                     table[SOURCE_NAME_COLNAME] == source_name
                 ]
                 if index_value in source_subtable[item_colname].values:
-                    items_to_drop_pos.append(obs_pos)
+                    items_to_drop_idx.append(obs_i)
             # Remove those items
-            items_to_drop_pos.reverse()
-            for obs_pos in items_to_drop_pos:
+            items_to_drop_idx.reverse()
+            for obs_i in items_to_drop_idx:
                 for k in items_to_add.keys():
-                    items_to_add[k].pop(obs_pos)
+                    items_to_add[k].pop(obs_i)
         # For an added row, if the value for the index exist and associated to
         # a known value/added to Anki/has a set due date, then set know to True
         if item_colname is not None:
-            for obs_pos, index_value in enumerate(items_to_add[item_colname]):
+            for obs_i, index_value in enumerate(items_to_add[item_colname]):
                 # Check conditions separetely
                 table = self.__dict__[table_name]
                 value_exists = table[item_colname] == index_value
@@ -398,7 +401,7 @@ class KnowledgeBase:
                         "date (if token table). Mark it as"
                         " know in the added items as well."
                     )
-                    items_to_add[IS_KNOWN_COLNAME][obs_pos] = True
+                    items_to_add[IS_KNOWN_COLNAME][obs_i] = True
         # Add the values
         if all(len(l) > 0 for l in items_to_add.values()):
             self.__dict__[table_name] = pd.concat(

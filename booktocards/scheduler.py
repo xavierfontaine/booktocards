@@ -437,7 +437,7 @@ class Scheduler:
             # If all kanjis are known, trigger add_vocab_for_next_round
             if len(kanji_not_known_added_schedtoknown) == 0:
                 self.add_vocab_for_next_round(
-                    token=token_df.iloc[i][TOKEN_COLNAME],
+                    token=token_df.loc[i][TOKEN_COLNAME],
                     source_name=token_df.iloc[i][SOURCE_NAME_COLNAME],
                 )
             # Else, add to self.vocab_w_uncertain_status_df

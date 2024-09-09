@@ -1,4 +1,3 @@
-import copy
 import datetime
 import pandas as pd
 import pytest
@@ -70,20 +69,18 @@ def test_files_are_created_and_reloaded(tmp_path):
     assert kb.__dict__[SEQ_TABLE_NAME].shape[0] == 1
 
 
-def test_adding_twice_same_doc_adds_items_once(tmp_path):
+def test_error_when_adding_again_a_doc(tmp_path):
     # Change path where kb will be saved
     path = tmp_path.resolve()
     # Add doc
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
-    kb_dict_1st_add = copy.deepcopy(kb.__dict__)
-    # Add a 2nd doc (the same)
-    kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
-    kb_dict_2nd_add = copy.deepcopy(kb.__dict__)
-    # Make sure that IS_KNOWN_COLNAME is False
-    for table_name in [TOKEN_TABLE_NAME, KANJI_TABLE_NAME]:
-        assert kb_dict_1st_add[table_name].equals(kb_dict_2nd_add[table_name])
+    # Adding again should fail
+    with pytest.raises(ValueError):
+        kb.add_doc(
+            doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False
+        )
 
 
 def test_remove_doc_works(tmp_path):
@@ -127,9 +124,7 @@ def test_set_to_known_works(tmp_path):
     assert kb.__dict__[TOKEN_TABLE_NAME][IS_KNOWN_COLNAME].sum() == 2
 
 
-@pytest.mark.parametrize(
-    "set_voc_tag", ["is_known", "is_added_to_anki", "to_be_studied_from"]
-)
+@pytest.mark.parametrize("set_voc_tag", ['is_known', 'is_added_to_anki', 'to_be_studied_from'])
 def test_automatically_set_known_for_new_doc(tmp_path, set_voc_tag):
     # Change path where kb will be saved
     path = tmp_path.resolve()

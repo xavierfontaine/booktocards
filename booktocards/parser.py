@@ -58,11 +58,8 @@ class ParseDocument:
         # Sentencize
         logger.info("-- Sentencize")
         sents = list(
-            jp_spacy.sentencize(
-                doc=doc,
-                n_lines_per_chunk=_N_LINES_PER_CHUNK,
-                sep_tok=self._sep_tok,
-            )
+            jp_spacy.sentencize(doc=doc, n_lines_per_chunk=_N_LINES_PER_CHUNK,
+                                sep_tok=self._sep_tok)
         )
         # Tokenize
         logger.info("-- Tokenize")

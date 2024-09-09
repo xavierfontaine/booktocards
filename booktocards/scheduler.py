@@ -162,9 +162,9 @@ class Scheduler:
                 source_name=self.due_vocab_df.loc[idx, SOURCE_NAME_COLNAME],
             )
         # Calculate number of vocab to add
-        self.n_items_to_add = (self.n_days_study * self.n_cards_days) - len(
-            self.due_vocab_df
-        )
+        self.n_items_to_add = (
+            self.n_days_study * self.n_cards_days
+        )  - len(self.due_vocab_df)
 
     def set_vocab_to_add_to_known(
         self,
@@ -226,13 +226,9 @@ class Scheduler:
                 f"{token=} is already added to self.{df_name}"
             )
 
-    def get_studiable_voc(
-        self,
-        min_count: int = 1,
-        sort_seq_id: bool = False,
-        sort_count: bool = False,
-        source_name: Optional[SourceName] = None,
-    ) -> pd.DataFrame:
+    def get_studiable_voc(self, min_count: int = 1, sort_seq_id: bool =
+                          False, sort_count: bool = False, source_name:
+                          Optional[SourceName] = None,) -> pd.DataFrame:
         """Return voc not marked in either the kb and the scheduler
 
         Not marked in kb as known/added/suspended/due
@@ -250,9 +246,8 @@ class Scheduler:
             source_name=source_name,
         )
         # Remove those below a certain count
-        token_not_marked_in_kb_df = token_not_marked_in_kb_df[
-            token_not_marked_in_kb_df[COUNT_COLNAME] >= min_count
-        ]
+        token_not_marked_in_kb_df = token_not_marked_in_kb_df[token_not_marked_in_kb_df[COUNT_COLNAME] >=
+                min_count]
         # Init the bool for tokens not marked in self
         is_marked_in_sched = [
             False for i in range(len(token_not_marked_in_kb_df))
@@ -291,17 +286,12 @@ class Scheduler:
         out_df = token_not_marked_in_kb_df[~is_marked_in_sched]
         # Sort
         if sort_seq_id and sort_count:
-            out_df["first_seq"] = out_df[SEQS_IDS_COLNAME].apply(
-                lambda x: x[0]
-            )
-            out_df = out_df.sort_values(
-                by=["first_seq", COUNT_COLNAME], ascending=[True, False]
-            )
+            out_df["first_seq"] = out_df[SEQS_IDS_COLNAME].apply(lambda x: x[0])
+            out_df = out_df.sort_values(by=["first_seq", COUNT_COLNAME],
+            ascending=[True, False])
             del out_df["first_seq"]
         elif sort_seq_id and not sort_count:
-            out_df["first_seq"] = out_df[SEQS_IDS_COLNAME].apply(
-                lambda x: x[0]
-            )
+            out_df["first_seq"] = out_df[SEQS_IDS_COLNAME].apply(lambda x: x[0])
             out_df = out_df.sort_values(by=["first_seq"], ascending=True)
             del out_df["first_seq"]
         elif not sort_seq_id and sort_count:
@@ -380,8 +370,9 @@ class Scheduler:
     def _raise_error_if_too_much_items_already_present(
         self, item_value, source_name: SourceName
     ):
-        n_added_items = len(self.kanji_for_next_round_df) + len(
-            self.vocab_for_next_round_df
+        n_added_items = (
+            len(self.kanji_for_next_round_df)
+            + len(self.vocab_for_next_round_df)
         )
         max_added_items = self.n_days_study * self.n_cards_days
         if n_added_items >= max_added_items:
@@ -424,17 +415,15 @@ class Scheduler:
         # For each row:
         for idx in token_df.index:
             # Get kanjis that are not known or added
-            kanji_not_known_added_schedtoknown = (
-                self.get_kanjis_sources_from_token_df(
-                    token_df=token_df.loc[idx].to_frame().T,
-                    only_not_added=True,
-                    only_not_known=True,
-                    only_not_suspended=False,
-                    only_not_sched_to_added=False,
-                    only_not_sched_to_known=True,
-                    only_not_sched_to_suspended=False,
-                )[KANJI_COLNAME].tolist()
-            )
+            kanji_not_known_added_schedtoknown = self.get_kanjis_sources_from_token_df(
+                token_df=token_df.loc[idx].to_frame().T,
+                only_not_added=True,
+                only_not_known=True,
+                only_not_suspended=False,
+                only_not_sched_to_added=False,
+                only_not_sched_to_known=True,
+                only_not_sched_to_suspended=False,
+            )[KANJI_COLNAME].tolist()
             # If all kanjis are known, trigger add_vocab_for_next_round
             if len(kanji_not_known_added_schedtoknown) == 0:
                 self.add_vocab_for_next_round(
@@ -482,17 +471,15 @@ class Scheduler:
         )
         assert len(token_df) == 1
         # Refuse if kanji not marked as known
-        kanji_not_known_added_schedtoknown = (
-            self.get_kanjis_sources_from_token_df(
-                token_df=token_df,
-                only_not_added=True,
-                only_not_known=True,
-                only_not_suspended=False,
-                only_not_sched_to_added=False,
-                only_not_sched_to_known=True,
-                only_not_sched_to_suspended=False,
-            )[KANJI_COLNAME].tolist()
-        )
+        kanji_not_known_added_schedtoknown = self.get_kanjis_sources_from_token_df(
+            token_df=token_df,
+            only_not_added=True,
+            only_not_known=True,
+            only_not_suspended=False,
+            only_not_sched_to_added=False,
+            only_not_sched_to_known=True,
+            only_not_sched_to_suspended=False,
+        )[KANJI_COLNAME].tolist()
         if len(kanji_not_known_added_schedtoknown) != 0:
             raise KanjiNotKnownError(
                 f"Some kanjis in {token} are not known:"
@@ -588,17 +575,15 @@ class Scheduler:
         )
         assert len(token_df) == 1
         # Check all kanjis are marked as know or belong to self.kanji_for_next_round_df
-        kanji_not_known_added_schedtoadded_schedtoknown = (
-            self.get_kanjis_sources_from_token_df(
-                token_df=token_df,
-                only_not_added=True,
-                only_not_known=True,
-                only_not_suspended=False,
-                only_not_sched_to_added=True,
-                only_not_sched_to_known=True,
-                only_not_sched_to_suspended=False,
-            )[KANJI_COLNAME].tolist()
-        )
+        kanji_not_known_added_schedtoadded_schedtoknown = self.get_kanjis_sources_from_token_df(
+            token_df=token_df,
+            only_not_added=True,
+            only_not_known=True,
+            only_not_suspended=False,
+            only_not_sched_to_added=True,
+            only_not_sched_to_known=True,
+            only_not_sched_to_suspended=False,
+        )[KANJI_COLNAME].tolist()
         kanji_added_ls = self.kanji_for_next_round_df[KANJI_COLNAME].tolist()
         if not set(kanji_not_known_added_schedtoadded_schedtoknown).issubset(
             set(kanji_added_ls)
@@ -647,7 +632,9 @@ class Scheduler:
         only_not_sched_to_suspended: bool,
     ) -> pd.DataFrame:
         """Extract [kanji, source] couples from all tokens"""
-        kanjis_sources_df = pd.DataFrame(columns=DATA_MODEL[KANJI_TABLE_NAME])
+        kanjis_sources_df = pd.DataFrame(
+            columns=DATA_MODEL[KANJI_TABLE_NAME]
+        )
         for token, source_name in token_df[
             [TOKEN_COLNAME, SOURCE_NAME_COLNAME]
         ].values:
@@ -672,25 +659,17 @@ class Scheduler:
         )
         if only_not_sched_to_added:
             kanjis_sources_df = kanjis_sources_df[
-                ~kanjis_sources_df[KANJI_COLNAME].isin(
-                    self.kanji_for_next_round_df[KANJI_COLNAME]
-                )
+                ~kanjis_sources_df[KANJI_COLNAME].isin(self.kanji_for_next_round_df[KANJI_COLNAME])
             ]
         if only_not_sched_to_known:
             kanjis_sources_df = kanjis_sources_df[
-                ~kanjis_sources_df[KANJI_COLNAME].isin(
-                    self.kanji_set_to_add_to_known
-                )
+                ~kanjis_sources_df[KANJI_COLNAME].isin(self.kanji_set_to_add_to_known)
             ]
         if only_not_sched_to_suspended:
             kanjis_sources_df = kanjis_sources_df[
-                ~kanjis_sources_df[KANJI_COLNAME].isin(
-                    [
-                        token
-                        for token, source_name in self.kanji_set_to_add_to_suspended
-                    ]
-                )
-            ]
+                ~kanjis_sources_df[KANJI_COLNAME].isin([token for token,
+                    source_name in self.kanji_set_to_add_to_suspended
+            ])]
         return kanjis_sources_df
 
     def _make_voc_cards_from_query(
@@ -802,12 +781,12 @@ class Scheduler:
         )
         # If for Anki, replace line breaks with their html counterparts
         if for_anki:
-            vocab_cards_df = vocab_cards_df.replace(
-                {"\n": "<br/>"}, regex=True
-            ).replace({"\r": "<br/>"}, regex=True)
-            kanji_cards_df = kanji_cards_df.replace(
-                {"\n": "<br/>"}, regex=True
-            ).replace({"\r": "<br/>"}, regex=True)
+            vocab_cards_df = vocab_cards_df.replace({"\n": "<br/>"}, regex=True).replace(
+                {"\r": "<br/>"}, regex=True
+            )
+            kanji_cards_df = kanji_cards_df.replace({"\n": "<br/>"}, regex=True).replace(
+                {"\r": "<br/>"}, regex=True
+            )
         # Mark vocab added for next round as added
         self.vocab_for_next_round_df.apply(
             lambda x: altered_kb.set_item_to_added_to_anki(

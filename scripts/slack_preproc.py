@@ -37,7 +37,7 @@ SLACK_USERJSON_REALNAME_KEY = "real_name"
 MIN_MSG_LENGTH: Optional[int] = 15
 # Shuffle/subsample
 SEED = 42
-SAMPLE_PROP: float = 0.12
+SAMPLE_PROP: float = .12
 # Message separator when written to file (will be used by the sentencizer to
 # separate sentences further.)
 MSG_SEPARATOR = "-|-"
@@ -105,9 +105,7 @@ def extract_text_info(slack_message: dict) -> MessageInfo:
                         if "text" in e:
                             msg_wo_user_ref += e["text"]
     message_info = MessageInfo(
-        user_id=user_id,
-        original_msg=message,
-        msg_wo_user_ref=msg_wo_user_ref,
+        user_id=user_id, original_msg=message, msg_wo_user_ref=msg_wo_user_ref
     )
     return message_info
 
@@ -115,10 +113,10 @@ def extract_text_info(slack_message: dict) -> MessageInfo:
 def parse_slack_entries(
     slack_entries: list[SlackEntry],
     user_ids_subset: Optional[list[SlackUserId]] = None,
-) -> list[MessageInfo]:
+)->list[MessageInfo]:
     """Parse Slack entries
 
-    Create MessageInfo objects, by
+    Create MessageInfo objects, by 
     1. excluding deleted messages, changed versions
     of messages, bot messages etc.
     2. Keeping only specific users
@@ -145,9 +143,7 @@ def parse_slack_entries(
     ]
     # Keep only messages from specified users
     if user_ids_subset is not None:
-        slack_entries = [
-            c for c in slack_entries if c["user"] in user_ids_subset
-        ]
+        slack_entries = [c for c in slack_entries if c["user"] in user_ids_subset]
     # Keep message if plain text, else keep only elements of rich_text_section
     msg_infos = [extract_text_info(c) for c in slack_entries]
     return msg_infos
@@ -156,7 +152,7 @@ def parse_slack_entries(
 def clean_msg_infos(
     msg_infos: list[MessageInfo],
     user_id_name_lookup: dict[SlackUserId, SlackRealName],
-) -> list[MessageInfo]:
+)->list[MessageInfo]:
     """Clean list of MessageInfo
 
     Cleaner messages are stored in MessageInfo.cleaned_msg. Cleaning steps are:
@@ -186,18 +182,19 @@ def clean_msg_infos(
     for info in msg_infos:
         info.cleaned_msg = info.original_msg
         # Remove embedded URL (not all URLs)
-        info.cleaned_msg = re.sub(
-            pattern="<http.*>", repl="", string=info.cleaned_msg
-        )
+        info.cleaned_msg = re.sub(pattern="<http.*>", repl="", string=info.cleaned_msg)
         # Replace user id by user name
-        found_ids = re.findall(pattern="<@[A-Z0-9]*>", string=info.cleaned_msg)
-        found_ids = [i[2:-1] for i in found_ids]
+        found_ids = re.findall(
+            pattern="<@[A-Z0-9]*>",
+            string=info.cleaned_msg
+        )
+        found_ids = [i[2: -1] for i in found_ids]
         for found_id in found_ids:
             try:
                 info.cleaned_msg = re.sub(
                     pattern=f"<@{found_id}>",
                     repl=user_id_name_lookup[found_id],
-                    string=info.cleaned_msg,
+                    string=info.cleaned_msg
                 )
             # If, for some reason, the correspondance isn't found
             except KeyError:
@@ -211,12 +208,15 @@ def clean_msg_infos(
 # ====
 # Load
 # ====
-# Get path to folder log and user
+# Get path to folder log and user 
 conf = b2c_io.get_conf("extractor.yaml")
 slack_logs_folderpath = conf["slack_logs_folderpath"]
 user_ids_subset = conf["user_ids_subset"]
 # Load slack's user json
-user_json_path = os.path.join(slack_logs_folderpath, SLACK_USER_JSON_FILENAME)
+user_json_path = os.path.join(
+    slack_logs_folderpath,
+    SLACK_USER_JSON_FILENAME
+)
 with open(user_json_path, "r") as f:
     slack_users_raw: list[dict] = json.load(
         fp=f,
@@ -227,9 +227,7 @@ with open(user_json_path, "r") as f:
 # Get user_id: name
 # =================
 user_id_name_lookup: dict[SlackUserId, SlackRealName] = {
-    e[SLACK_USERJSON_ID_KEY]: e[SLACK_USERJSON_PROFILE_KEY][
-        SLACK_USERJSON_REALNAME_KEY
-    ]
+    e[SLACK_USERJSON_ID_KEY]: e[SLACK_USERJSON_PROFILE_KEY][SLACK_USERJSON_REALNAME_KEY]
     for e in slack_users_raw
 }
 
@@ -257,8 +255,8 @@ slack_folderpath = os.path.join(
 )
 # Get paths
 logger.info("-- Get paths")
-paths = list(Path(slack_folderpath).rglob("*.json"))
-if SAMPLE_PROP == 1.0:
+paths = list(Path(slack_folderpath).rglob('*.json'))
+if SAMPLE_PROP == 1.:
     logger.info("-- Shuffle files")
 else:
     logger.info(f"-- Shuffle and keep {SAMPLE_PROP} of the files")
@@ -271,12 +269,9 @@ if MIN_MSG_LENGTH is not None:
         f"-- (only messages with {MIN_MSG_LENGTH} chars or more are kept)"
     )
 for path in tqdm(paths):
-    # ... i.e., all json except for non-log jsons
-    if path.name not in [
-        "channels.json",
-        "integration_logs.json",
-        "users.json",
-    ]:
+    #... i.e., all json except for non-log jsons
+    if path.name not in ["channels.json", "integration_logs.json",
+                         "users.json"]:
         with path.open("r") as f:
             slack_entries: list[SlackEntry] = json.load(f)
         # Parse slack entries, keep only users in user_ids_subset
@@ -285,16 +280,11 @@ for path in tqdm(paths):
             user_ids_subset=user_ids_subset,
         )
         # Keep only msgs in Japanese, remove URLs, replace user ids by names
-        msg_infos = clean_msg_infos(
-            msg_infos=msg_infos, user_id_name_lookup=user_id_name_lookup
-        )
+        msg_infos = clean_msg_infos(msg_infos=msg_infos, user_id_name_lookup=user_id_name_lookup)
         # Filter out msgs that are too short
         if MIN_MSG_LENGTH is not None:
-            msg_infos = [
-                info
-                for info in msg_infos
-                if len(info.cleaned_msg) >= MIN_MSG_LENGTH
-            ]
+            msg_infos = [info for info in msg_infos if len(info.cleaned_msg) >=
+                     MIN_MSG_LENGTH]
         # Write
         if msg_infos != []:
             text = (

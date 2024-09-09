@@ -156,9 +156,10 @@ class Scheduler:
             len(self.due_vocab_df), self.n_cards_days * self.n_days_study
         )
         for i in range(max_due_vocab_to_add):
+            idx = self.due_vocab_df.index[i]
             self.add_vocab_for_next_round(
-                token=self.due_vocab_df[TOKEN_COLNAME].iloc[i],
-                source_name=self.due_vocab_df[SOURCE_NAME_COLNAME].iloc[i],
+                token=self.due_vocab_df.loc[idx, TOKEN_COLNAME],
+                source_name=self.due_vocab_df.loc[idx, SOURCE_NAME_COLNAME],
             )
         # Calculate number of vocab to add
         self.n_items_to_add = (self.n_days_study * self.n_cards_days) - len(
@@ -457,7 +458,6 @@ class Scheduler:
     def add_vocab_for_next_round(self, token: Token, source_name: SourceName):
         """Add vocab to next study cycle"""
         # Sanity
-        print(token)
         self._raise_error_if_tok_in_voc_for_next_round(token=token)
         self._raise_error_if_tok_in_voc_for_rounds_after_next(token=token)
         # Check vocab in uncertain df

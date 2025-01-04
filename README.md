@@ -1,8 +1,5 @@
 # BookToCards
-Learning Japanese kanjis and vocabulary from any material.
-
-:warning: work-in-progress :warning:
-
+Create flashcards from Japanese material for learning kanji and vocabulary.
 
 ## Installation
 1. At the root of the repo, `poetry install`

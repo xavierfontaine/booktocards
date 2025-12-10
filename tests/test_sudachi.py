@@ -1,4 +1,4 @@
-from booktocards.sudachi import filter_on_pos
+from booktocards.sudachi import Tokenizer
 
 
 def test_exclusion_work():
@@ -20,7 +20,7 @@ def test_exclusion_work():
         ("lemma4", ("adj", "masc", "bla", "bla")),
         ("lemma5", ("past participle", "fem", "bla", "bla")),
     ]
-    obs_out = filter_on_pos(
+    obs_out = Tokenizer().filter_on_pos(
         dictform_pos_doc=dictform_pos_doc, excluded_pos=excluded_pos
     )
     assert exp_out == obs_out

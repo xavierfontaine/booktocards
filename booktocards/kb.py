@@ -595,7 +595,7 @@ class KnowledgeBase:
             raise ValueError(f"{only_no_study_date=} but {max_study_date=}")
         # Identify rows
         is_items_rows = pd.Series(
-            [True for _ in range(len(df))], index=df.index
+            True, index=df.index
         )
         if item_value is not None:
             if item_colname is None:

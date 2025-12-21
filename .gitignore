@@ -22,3 +22,5 @@ data/out/kb_test/*
 !data/out/kb_test/.gitkeep
 data/out/cards/*
 !data/out/cards/.gitkeep
+
+.null-ls_*

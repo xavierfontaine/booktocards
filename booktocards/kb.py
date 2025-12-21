@@ -561,7 +561,9 @@ class KnowledgeBase:
         source_name: Optional[str] = None,
         max_study_date: Optional[datetime.date] = None,
     ) -> pd.DataFrame:
-        """Get items
+        """Get items corresponding to input conditions.
+
+        Returns a copy of the relevant rows in the table.
 
         Args:
             table_name (Literal[
@@ -639,7 +641,7 @@ class KnowledgeBase:
                 else x <= max_study_date
             )
             is_items_rows = is_items_rows & is_before_max_and_not_null
-        return df[is_items_rows]
+        return df[is_items_rows].copy()
 
     def remove_doc(self, doc_name: str):
         """Remove doc from kb"""

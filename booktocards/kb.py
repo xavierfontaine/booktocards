@@ -308,7 +308,7 @@ class KnowledgeBase:
     def _add_items(
         self,
         entry_to_add: dict[ColName, Values],
-        table_name: Literal[TOKEN_TABLE_NAME, KANJI_TABLE_NAME, SEQ_COLNAME],
+        table_name: Literal[TOKEN_TABLE_NAME, KANJI_TABLE_NAME, SEQ_TABLE_NAME],
         item_colname: Optional[ColName] = None,
     ) -> None:
         """Add item to the table
@@ -316,7 +316,7 @@ class KnowledgeBase:
         Args:
             entry_to_add (dict[ColName, Values]): row to add to the table
             table_name (Literal[TOKEN_TABLE_NAME, KANJI_TABLE_NAME,
-                SEQ_COLNAME]): name of the table
+                SEQ_TABLE_NAME]): name of the table
             item_colname (Optional[ColName]): if specified, will check that if
                 the new entry shares values of `item_colname` with another
                 entry, then it will take the value of IS_KNOWN_COLNAME from

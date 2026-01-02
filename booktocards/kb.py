@@ -354,7 +354,7 @@ class KnowledgeBase:
                 # Check conditions separetely
                 table = self.__dict__[table_name]
                 value_exists = table[item_colname] == index_value
-                value_know = table[IS_KNOWN_COLNAME] == True
+                value_know = table[IS_KNOWN_COLNAME].isin([True])  # Handle NA
                 value_added_to_anki = table[IS_ADDED_TO_ANKI_COLNAME] == True
                 if table_name == TOKEN_TABLE_NAME:
                     value_to_be_studied = table[TO_BE_STUDIED_FROM_DATE_COLNAME].apply(
@@ -389,6 +389,12 @@ class KnowledgeBase:
                 pd.DataFrame(items_to_add),
             ]
         )
+        # Enforce types. This allows smooth oeprations on bool and (nullable) boolean.
+        for col_name, dtype in DATA_MODEL[table_name].items():
+            self.__dict__[table_name][col_name] = (
+                self.__dict__[table_name][col_name].astype(dtype)
+            )
+
 
     def set_item_to_known(
         self,

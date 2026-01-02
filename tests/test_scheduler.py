@@ -290,7 +290,6 @@ def test_get_studiable_voc_2_docs(monkeypatch, tmp_path):
     kb.add_doc(doc=doc2, doc_name=source_name2, drop_ascii_alphanum_toks=False)
     # Get all voc as studiable
     studiable_voc_df = scheduler.get_studiable_voc()
-    print(studiable_voc_df)
     assert len(studiable_voc_df) == 9
     # Get studiable voc from doc1
     studiable_voc_df = scheduler.get_studiable_voc(source_name=source_name1)

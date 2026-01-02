@@ -51,31 +51,33 @@ IS_ADDED_TO_ANKI_COLNAME = "is_added_to_anki"
 IS_SUPSENDED_FOR_SOURCE_COLNAME = "is_suspended_for_source"
 TO_BE_STUDIED_FROM_DATE_COLNAME = "to_be_studied_from"
 ASSOCIATED_TOKS_FROM_SOURCE_COLNAME = "associated_toks_from_source"
-DATA_MODEL = {  # table name: [column names]
-    TOKEN_TABLE_NAME: [
-        TOKEN_COLNAME,
-        COUNT_COLNAME,
-        SEQS_IDS_COLNAME,
-        SOURCE_NAME_COLNAME,
-        IS_KNOWN_COLNAME,
-        IS_ADDED_TO_ANKI_COLNAME,
-        IS_SUPSENDED_FOR_SOURCE_COLNAME,
-        TO_BE_STUDIED_FROM_DATE_COLNAME,
-    ],
-    KANJI_TABLE_NAME: [
-        KANJI_COLNAME,
-        ASSOCIATED_TOKS_FROM_SOURCE_COLNAME,
-        IS_KNOWN_COLNAME,
-        IS_ADDED_TO_ANKI_COLNAME,
-        IS_SUPSENDED_FOR_SOURCE_COLNAME,
-        SOURCE_NAME_COLNAME,
-    ],
-    SEQ_TABLE_NAME: [
-        SEQ_COLNAME,
-        SEQ_ID_COLNAME,
-        ASSOCIATED_TOKS_FROM_SOURCE_COLNAME,
-        SOURCE_NAME_COLNAME,
-    ],
+DATA_MODEL = {  # table name: {column name: pandas dtype}
+    # 'string' instead of 'str' prevents dtype mixing.
+    # 'boolean' instead of 'bool' allows for NA values.
+    TOKEN_TABLE_NAME: {
+        TOKEN_COLNAME: "string",
+        COUNT_COLNAME: "int",
+        SEQS_IDS_COLNAME: "object",  # list of str
+        SOURCE_NAME_COLNAME: "string",
+        IS_KNOWN_COLNAME: "boolean",  # NA if no deecided yet
+        IS_ADDED_TO_ANKI_COLNAME: "bool",
+        IS_SUPSENDED_FOR_SOURCE_COLNAME: "bool",
+        TO_BE_STUDIED_FROM_DATE_COLNAME: "object",
+    },
+    KANJI_TABLE_NAME: {
+        KANJI_COLNAME: "string",
+        ASSOCIATED_TOKS_FROM_SOURCE_COLNAME: "object",  # list of str
+        IS_KNOWN_COLNAME: "boolean",  # NA if no deecided yet
+        IS_ADDED_TO_ANKI_COLNAME: "bool",
+        IS_SUPSENDED_FOR_SOURCE_COLNAME: "bool",
+        SOURCE_NAME_COLNAME: "string",
+    },
+    SEQ_TABLE_NAME: {
+        SEQ_COLNAME: "string",
+        SEQ_ID_COLNAME: "int",
+        ASSOCIATED_TOKS_FROM_SOURCE_COLNAME: "object",  # list of str
+        SOURCE_NAME_COLNAME: "string",
+    },
 }
 
 
@@ -122,7 +124,7 @@ class KnowledgeBase:
             # Create table
             for df_name in DATA_MODEL.keys():
                 self.__dict__[df_name] = pd.DataFrame(
-                    columns=DATA_MODEL[df_name]
+                    columns=DATA_MODEL[df_name].keys()
                 )
             # Cast to bool whatever needs to be
             for df_name in [TOKEN_TABLE_NAME, KANJI_TABLE_NAME]:

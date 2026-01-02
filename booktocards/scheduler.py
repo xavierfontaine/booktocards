@@ -119,19 +119,19 @@ class Scheduler:
         self.today = today
         # Init df for vocab with possibly unknown kanji
         self.vocab_w_uncertain_status_df = pd.DataFrame(
-            columns=DATA_MODEL[TOKEN_TABLE_NAME]
+            columns=DATA_MODEL[TOKEN_TABLE_NAME].keys()
         )
         # Init df for newly added vocab (not due) that will go into next round
         self.vocab_for_next_round_df = pd.DataFrame(
-            columns=DATA_MODEL[TOKEN_TABLE_NAME]
+            columns=DATA_MODEL[TOKEN_TABLE_NAME].keys()
         )
         # Init df for newly added kanji that will go into next round
         self.kanji_for_next_round_df = pd.DataFrame(
-            columns=DATA_MODEL[KANJI_TABLE_NAME]
+            columns=DATA_MODEL[KANJI_TABLE_NAME].keys()
         )
         # Init df for newly added vocab (not due) that will go into next round
         self.vocab_for_rounds_after_next_df = pd.DataFrame(
-            columns=DATA_MODEL[TOKEN_TABLE_NAME]
+            columns=DATA_MODEL[TOKEN_TABLE_NAME].keys()
         )
         # Init df for voc/kanji the user asked to add to known or suspended
         self.vocab_set_to_add_to_known: list[Token] = list()
@@ -441,7 +441,7 @@ class Scheduler:
 
     def empty_vocab_w_uncertain_status_df(self):
         self.vocab_w_uncertain_status_df = pd.DataFrame(
-            columns=DATA_MODEL[TOKEN_TABLE_NAME]
+            columns=DATA_MODEL[TOKEN_TABLE_NAME].keys()
         )
 
     def add_vocab_for_next_round(self, token: Token, source_name: SourceName):
@@ -633,7 +633,7 @@ class Scheduler:
     ) -> pd.DataFrame:
         """Extract [kanji, source] couples from all tokens"""
         kanjis_sources_df = pd.DataFrame(
-            columns=DATA_MODEL[KANJI_TABLE_NAME]
+            columns=DATA_MODEL[KANJI_TABLE_NAME].keys()
         )
         for token, source_name in token_df[
             [TOKEN_COLNAME, SOURCE_NAME_COLNAME]

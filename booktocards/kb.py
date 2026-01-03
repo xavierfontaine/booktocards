@@ -125,7 +125,7 @@ class KnowledgeBase:
             for df_name in DATA_MODEL.keys():
                 self.__dict__[df_name] = pd.DataFrame(
                     columns=DATA_MODEL[df_name].keys()
-                )
+                ).astype(DATA_MODEL[df_name])
             # Cast to bool whatever needs to be
             for df_name in [TOKEN_TABLE_NAME, KANJI_TABLE_NAME]:
                 for col_name in [
@@ -386,14 +386,9 @@ class KnowledgeBase:
         self.__dict__[table_name] = pd.concat(
             [
                 self.__dict__[table_name],
-                pd.DataFrame(items_to_add),
+                pd.DataFrame(items_to_add).astype(DATA_MODEL[table_name]),
             ]
         )
-        # Enforce types. This allows smooth oeprations on bool and (nullable) boolean.
-        for col_name, dtype in DATA_MODEL[table_name].items():
-            self.__dict__[table_name][col_name] = (
-                self.__dict__[table_name][col_name].astype(dtype)
-            )
 
 
     def set_item_to_known(

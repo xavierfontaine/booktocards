@@ -2,6 +2,7 @@
 Scheduling of studies
 """
 import copy
+import numpy as np
 from typing import Literal
 import datetime
 from datetime import date, timedelta
@@ -120,19 +121,19 @@ class Scheduler:
         # Init df for vocab with possibly unknown kanji
         self.vocab_w_uncertain_status_df = pd.DataFrame(
             columns=DATA_MODEL[TOKEN_TABLE_NAME].keys()
-        )
+        ).astype(DATA_MODEL[TOKEN_TABLE_NAME])
         # Init df for newly added vocab (not due) that will go into next round
         self.vocab_for_next_round_df = pd.DataFrame(
             columns=DATA_MODEL[TOKEN_TABLE_NAME].keys()
-        )
+        ).astype(DATA_MODEL[TOKEN_TABLE_NAME])
         # Init df for newly added kanji that will go into next round
         self.kanji_for_next_round_df = pd.DataFrame(
             columns=DATA_MODEL[KANJI_TABLE_NAME].keys()
-        )
+        ).astype(DATA_MODEL[KANJI_TABLE_NAME])
         # Init df for newly added vocab (not due) that will go into next round
         self.vocab_for_rounds_after_next_df = pd.DataFrame(
             columns=DATA_MODEL[TOKEN_TABLE_NAME].keys()
-        )
+        ).astype(DATA_MODEL[TOKEN_TABLE_NAME])
         # Init df for voc/kanji the user asked to add to known or suspended
         self.vocab_set_to_add_to_known: list[Token] = list()
         self.kanji_set_to_add_to_known: list[Kanji] = list()
@@ -249,9 +250,9 @@ class Scheduler:
         token_not_marked_in_kb_df = token_not_marked_in_kb_df[token_not_marked_in_kb_df[COUNT_COLNAME] >=
                 min_count]
         # Init the bool for tokens not marked in self
-        is_marked_in_sched = [
+        is_marked_in_sched = np.array([
             False for i in range(len(token_not_marked_in_kb_df))
-        ]
+        ])
         # In vocab_w_uncertain_status_df?
         is_marked_in_sched = is_marked_in_sched | (
             token_not_marked_in_kb_df[TOKEN_COLNAME].isin(
@@ -315,9 +316,9 @@ class Scheduler:
             only_no_study_date=True,
         )
         # Init the bool for kanji not marked in self
-        is_marked_in_sched = [
+        is_marked_in_sched = np.array([
             False for i in range(len(kanji_not_marked_in_kb_df))
-        ]
+        ])
         # In kanji_for_next_round_df?
         is_marked_in_sched = is_marked_in_sched | (
             kanji_not_marked_in_kb_df[KANJI_COLNAME].isin(
@@ -437,7 +438,7 @@ class Scheduler:
                         self.vocab_w_uncertain_status_df,
                         token_df.loc[idx].to_frame().T,
                     ]
-                )
+                ).astype(DATA_MODEL[TOKEN_TABLE_NAME])
 
     def empty_vocab_w_uncertain_status_df(self):
         self.vocab_w_uncertain_status_df = pd.DataFrame(
@@ -491,7 +492,7 @@ class Scheduler:
                 self.vocab_for_next_round_df,
                 token_df,
             ]
-        )
+        ).astype(DATA_MODEL[TOKEN_TABLE_NAME])
         # If was in vocab_w_uncertain_status_df, remove
         if vocab_is_in_uncertain_df:
             self._remove_from_uncertain_vocab_df(
@@ -534,7 +535,7 @@ class Scheduler:
                 self.kanji_for_next_round_df,
                 kanji_df,
             ]
-        )
+        ).astype(DATA_MODEL[KANJI_TABLE_NAME])
 
     def add_vocab_for_rounds_after_next(
         self, token: Token, source_name: SourceName
@@ -607,7 +608,7 @@ class Scheduler:
                 self.vocab_for_rounds_after_next_df,
                 token_df,
             ]
-        )
+        ).astype(DATA_MODEL[TOKEN_TABLE_NAME])
 
     def _remove_from_uncertain_vocab_df(
         self,
@@ -634,7 +635,7 @@ class Scheduler:
         """Extract [kanji, source] couples from all tokens"""
         kanjis_sources_df = pd.DataFrame(
             columns=DATA_MODEL[KANJI_TABLE_NAME].keys()
-        )
+        ).astype(DATA_MODEL[KANJI_TABLE_NAME])
         for token, source_name in token_df[
             [TOKEN_COLNAME, SOURCE_NAME_COLNAME]
         ].values:
@@ -653,7 +654,7 @@ class Scheduler:
                 )
                 kanjis_sources_df = pd.concat(
                     [kanjis_sources_df, kanji_source_df]
-                )
+                ).astype(DATA_MODEL[KANJI_TABLE_NAME])
         kanjis_sources_df = kanjis_sources_df.drop_duplicates(
             subset=[KANJI_COLNAME, SOURCE_NAME_COLNAME]
         )

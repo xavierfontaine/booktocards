@@ -3,7 +3,7 @@ import math
 import tqdm
 import itertools as it
 import logging
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Iterable
 
 from booktocards.annotations import DictForm, Pos, Token, Sentence
 
@@ -62,7 +62,7 @@ def sentencize(
     sep_tok: Optional[str] = None,
     n_lines_per_chunk: Optional[int] = None,
     split_at_linebreak: bool = False,
-) -> List[Sentence]:
+) -> Iterable[Sentence]:
     """Split text into sentences
 
     Sentence splitting ins performed through SpaCy. SpaCy tend to preserve
@@ -81,7 +81,7 @@ def sentencize(
         split_at_linebreak (bool): split_at_linebreak
 
     Returns:
-        List[Sentence]:
+        Iterable[Sentence]
     """
     # Get sentencizer
     nlp = spacy.load(
@@ -123,7 +123,7 @@ def sentencize(
         for chunk in spacified_doc_chunks
         for sent in chunk.sents
     ]
-    sents = it.chain(chunks_sents)
+    sents: Iterable[str] = it.chain(chunks_sents)
     # Further sentencize wrt line breaks
     if split_at_linebreak:
         sents = [l for sent in sents for l in sent.splitlines() if l != ""]

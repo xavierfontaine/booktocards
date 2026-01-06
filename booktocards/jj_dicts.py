@@ -66,7 +66,7 @@ class ManipulateSanseido:
         - Regarding why pyyaml is so slow: https://stackoverflow.com/a/27744056
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.sanseido_dict: dict[DictForm, dict[Reading, list[Definition]]]
         try:
             self._load()
@@ -77,7 +77,7 @@ class ManipulateSanseido:
 
     def _from_raw_files(self, dirpath: str = raw_sanseido_filepath) -> None:
         """Load sanseido from raw sanseido files"""
-        output = {}
+        output: dict[DictForm, dict[Reading, list[Definition]]] = dict()
         n_entries = 0  # Counting entries for final check
         for file_id in range(1, 34):
             filename = f"term_bank_{file_id}.json"
@@ -101,11 +101,9 @@ class ManipulateSanseido:
                     output[lemma][reading] = [definition]
             # Check we extracted everything
             assert n_entries == sum(
-                [
-                    len(reading_v)
-                    for lemma_k, lemma_v in output.items()
-                    for reading_k, reading_v in lemma_v.items()
-                ]
+                len(reading_v)  # type: ignore[misc]
+                for lemma_k, lemma_v in output.items()
+                for reading_k, reading_v in lemma_v.items()
             )
             # Assign to self
             self.sanseido_dict = output

@@ -43,17 +43,17 @@ class ParseDocument:
     """
 
     def __init__(self, doc: str, sep_tok: Optional[str] = None):
-        self.tokens: dict[Token, [Count, list[SentenceId]]] = []
+        self.tokens: dict[Token, tuple[Count, list[SentenceId]]] = {}
         self.sentences: dict[
-            SentenceId, [Sentence, list[Token]]
-        ] = pd.DataFrame()
+            SentenceId, tuple[Sentence, list[Token]]
+        ] = {}
         self._sep_tok = sep_tok
         # Parse the doc and ill the above
         self._extract_tokens(doc=doc)
 
     def _extract_tokens(
         self, doc: str
-    ) -> list[Token, Count, list[SentenceId]]:
+    ) -> None:
         """Fill self.tokens and self.sentences"""
         # Sentencize
         logger.info("-- Sentencize")
@@ -86,17 +86,18 @@ class ParseDocument:
         counts = iterables.ordered_counts(it=lemmas)
         lemma_counts = [(lemma, count) for lemma, count in counts.items()]
         # Make sents_dict (for return later)
-        sents_dict: dict[SentenceId, [Sentence, list[Token]]] = {
-            idx: [sent, toks]
+        sents_dict: dict[SentenceId, tuple[Sentence, list[Token]]] = {
+            idx: (sent, toks)
             for idx, [sent, toks] in zip(sents_df.index, sents_df.values)
         }
         # For each, get associated sentence ids
         logger.info("Add sentence ids")
-        lemma_counts_sentids: dict[Token, [Count, list[SentenceId]]] = {
-            lemma: [count, []] for lemma, count in lemma_counts
+        lemma_counts_sentids: dict[Token, tuple[Count, list[SentenceId]]] = {
+            lemma: (count, []) for lemma, count in lemma_counts
         }
         for sent_id, [sent, toks] in tqdm.tqdm(sents_dict.items()):
-            _ = [lemma_counts_sentids[tok][1].append(sent_id) for tok in toks]
+            for tok in toks:
+                lemma_counts_sentids[tok][1].append(sent_id)
         for value in lemma_counts_sentids.values():
             value[1] == list(set(value[1]))
         # Attach to self

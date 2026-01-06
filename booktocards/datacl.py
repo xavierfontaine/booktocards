@@ -82,8 +82,21 @@ def token_info_to_voc_cards(
     """
     cards = list()
     token_info = copy.deepcopy(token_info)
+    # Assert the expected fields of token_info are present
+    assert token_info.parsed_dict_entries is not None
+    assert token_info.source_ex_str is not None
+    assert token_info.source_ex_str_transl is not None
+    assert token_info.tatoeba_ex_str is not None
+    assert token_info.tatoeba_ex_str_transl is not None
+    assert token_info.sanseido_dict_entries is not None
     # Create each card
     for entry in token_info.parsed_dict_entries:
+        # Assert the expected fields of each parsed_dict_entry are present
+        assert entry.entry_id is not None
+        assert entry.kana_forms is not None
+        assert entry.kanji_forms is not None
+        assert entry.meanings is not None
+        # Make card
         card = VocabCard(entry_id=entry.entry_id, lemma=token_info.lemma)
         card.count = token_info.count
         card.kana_forms_str = ", ".join(entry.kana_forms)

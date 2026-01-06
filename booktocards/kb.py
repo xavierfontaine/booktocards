@@ -1,10 +1,11 @@
 import copy
 import datetime
-from typing import Literal, Optional
+from typing import Literal, Optional, TypeAlias
 import os
 import pandas as pd
 import logging
 import deepl
+from enum import Enum
 
 
 from booktocards import io
@@ -34,49 +35,59 @@ logger = logging.getLogger(__name__)
 # =========
 _KB_OUT_DIRNAME = "kb"
 _OUT_PICKLE_EXTENSION = ".pickle"
-# Data model for df in KnowledgeBase
-TOKEN_TABLE_NAME = "tokens_df"
-KANJI_TABLE_NAME = "kanjis_df"
-SEQ_TABLE_NAME = "seqs_df"
-TOKEN_COLNAME = "token"
-KANJI_COLNAME = "kanji"
-SEQ_COLNAME = "seq"
-CARD_TABLE_NAME = "card"
-COUNT_COLNAME = "count"
-SEQ_ID_COLNAME = "seq_id"
-SEQS_IDS_COLNAME = "seqs_ids"
-SOURCE_NAME_COLNAME = "source_name"
-IS_KNOWN_COLNAME = "is_known"
-IS_ADDED_TO_ANKI_COLNAME = "is_added_to_anki"
-IS_SUPSENDED_FOR_SOURCE_COLNAME = "is_suspended_for_source"
-TO_BE_STUDIED_FROM_DATE_COLNAME = "to_be_studied_from"
-ASSOCIATED_TOKS_FROM_SOURCE_COLNAME = "associated_toks_from_source"
+
+
+# =========
+# Enums
+# =========
+class TableName(str, Enum):
+    TOKENS = "tokens_df"
+    KANJIS = "kanjis_df"
+    SEQS = "seqs_df"
+
+
+class ColumnName(str, Enum):
+    TOKEN = "token"
+    KANJI = "kanji"
+    SEQ = "seq"
+    CARD_TABLE = "card"
+    COUNT = "count"
+    SEQ_ID = "seq_id"
+    SEQS_IDS = "seqs_ids"
+    SOURCE_NAME = "source_name"
+    IS_KNOWN = "is_known"
+    IS_ADDED_TO_ANKI = "is_added_to_anki"
+    IS_SUSPENDED_FOR_SOURCE = "is_suspended_for_source"
+    TO_BE_STUDIED_FROM = "to_be_studied_from"
+    ASSOCIATED_TOKS_FROM_SOURCE = "associated_toks_from_source"
+
+
 DATA_MODEL = {  # table name: {column name: pandas dtype}
     # 'string' instead of 'str' prevents dtype mixing.
     # 'boolean' instead of 'bool' allows for NA values.
-    TOKEN_TABLE_NAME: {
-        TOKEN_COLNAME: "string",
-        COUNT_COLNAME: "int",
-        SEQS_IDS_COLNAME: "object",  # list of str
-        SOURCE_NAME_COLNAME: "string",
-        IS_KNOWN_COLNAME: "boolean",  # NA if no deecided yet
-        IS_ADDED_TO_ANKI_COLNAME: "bool",
-        IS_SUPSENDED_FOR_SOURCE_COLNAME: "bool",
-        TO_BE_STUDIED_FROM_DATE_COLNAME: "object",
+    TableName.TOKENS: {
+        ColumnName.TOKEN: "string",
+        ColumnName.COUNT: "int",
+        ColumnName.SEQS_IDS: "object",  # list of str
+        ColumnName.SOURCE_NAME: "string",
+        ColumnName.IS_KNOWN: "boolean",  # NA if no deecided yet
+        ColumnName.IS_ADDED_TO_ANKI: "bool",
+        ColumnName.IS_SUSPENDED_FOR_SOURCE: "bool",
+        ColumnName.TO_BE_STUDIED_FROM: "object",
     },
-    KANJI_TABLE_NAME: {
-        KANJI_COLNAME: "string",
-        ASSOCIATED_TOKS_FROM_SOURCE_COLNAME: "object",  # list of str
-        IS_KNOWN_COLNAME: "boolean",  # NA if no deecided yet
-        IS_ADDED_TO_ANKI_COLNAME: "bool",
-        IS_SUPSENDED_FOR_SOURCE_COLNAME: "bool",
-        SOURCE_NAME_COLNAME: "string",
+    TableName.KANJIS: {
+        ColumnName.KANJI: "string",
+        ColumnName.ASSOCIATED_TOKS_FROM_SOURCE: "object",  # list of str
+        ColumnName.IS_KNOWN: "boolean",  # NA if no deecided yet
+        ColumnName.IS_ADDED_TO_ANKI: "bool",
+        ColumnName.IS_SUSPENDED_FOR_SOURCE: "bool",
+        ColumnName.SOURCE_NAME: "string",
     },
-    SEQ_TABLE_NAME: {
-        SEQ_COLNAME: "string",
-        SEQ_ID_COLNAME: "int",
-        ASSOCIATED_TOKS_FROM_SOURCE_COLNAME: "object",  # list of str
-        SOURCE_NAME_COLNAME: "string",
+    TableName.SEQS: {
+        ColumnName.SEQ: "string",
+        ColumnName.SEQ_ID: "int",
+        ColumnName.ASSOCIATED_TOKS_FROM_SOURCE: "object",  # list of str
+        ColumnName.SOURCE_NAME: "string",
     },
 }
 
@@ -120,17 +131,17 @@ class KnowledgeBase:
             self._load_kb()
         # If impossible, initialize the db and save it
         except NoKBError:
-            logger.info(f"-- No existing kb. Initilazing it.")
+            logger.info(f"-- No existing kb. Initializing it.")
             # Create table
             for df_name in DATA_MODEL.keys():
                 self.__dict__[df_name] = pd.DataFrame(
-                    columns=DATA_MODEL[df_name].keys()
+                    columns=list(DATA_MODEL[df_name].keys())
                 ).astype(DATA_MODEL[df_name])
             # Cast to bool whatever needs to be
-            for df_name in [TOKEN_TABLE_NAME, KANJI_TABLE_NAME]:
+            for df_name in [TableName.TOKENS, TableName.KANJIS]:
                 for col_name in [
-                    IS_KNOWN_COLNAME,
-                    IS_SUPSENDED_FOR_SOURCE_COLNAME,
+                    ColumnName.IS_KNOWN,
+                    ColumnName.IS_SUSPENDED_FOR_SOURCE,
                 ]:
                     self[df_name][col_name] = self[df_name][col_name].astype(
                         "bool"
@@ -213,11 +224,11 @@ class KnowledgeBase:
         """
         if (
             doc_name
-            in self.__dict__[TOKEN_TABLE_NAME][SOURCE_NAME_COLNAME].values
+            in self.__dict__[TableName.TOKENS][ColumnName.SOURCE_NAME].values
             or doc_name
-            in self.__dict__[KANJI_TABLE_NAME][SOURCE_NAME_COLNAME].values
+            in self.__dict__[TableName.KANJIS][ColumnName.SOURCE_NAME].values
             or doc_name
-            in self.__dict__[SEQ_TABLE_NAME][SOURCE_NAME_COLNAME].values
+            in self.__dict__[TableName.SEQS][ColumnName.SOURCE_NAME].values
         ):
             raise ValueError(
                 f"Trying to add {doc_name=} to the kb, but already exists. Use"
@@ -245,64 +256,64 @@ class KnowledgeBase:
         # To self - extracted voc
         self._add_items(
             entry_to_add={
-                TOKEN_COLNAME: list(token_count_sentid.keys()),
-                COUNT_COLNAME: [v[0] for v in token_count_sentid.values()],
-                SEQS_IDS_COLNAME: [v[1] for v in token_count_sentid.values()],
-                SOURCE_NAME_COLNAME: [
+                ColumnName.TOKEN: list(token_count_sentid.keys()),
+                ColumnName.COUNT: [v[0] for v in token_count_sentid.values()],
+                ColumnName.SEQS_IDS: [v[1] for v in token_count_sentid.values()],
+                ColumnName.SOURCE_NAME: [
                     doc_name for i in range(len(token_count_sentid))
                 ],
-                IS_KNOWN_COLNAME: [
+                ColumnName.IS_KNOWN: [
                     pd.NA for i in range(len(token_count_sentid))
                 ],
-                IS_ADDED_TO_ANKI_COLNAME: [
+                ColumnName.IS_ADDED_TO_ANKI: [
                     False for i in range(len(token_count_sentid))
                 ],
-                IS_SUPSENDED_FOR_SOURCE_COLNAME: [
+                ColumnName.IS_SUSPENDED_FOR_SOURCE: [
                     False for i in range(len(token_count_sentid))
                 ],
-                TO_BE_STUDIED_FROM_DATE_COLNAME: [
+                ColumnName.TO_BE_STUDIED_FROM: [
                     None for i in range(len(token_count_sentid))
                 ],
             },
-            table_name=TOKEN_TABLE_NAME,
-            item_colname=TOKEN_COLNAME,
+            table_name=TableName.TOKENS,
+            item_colname=ColumnName.TOKEN,
         )
         # To self - kanjis
         self._add_items(
             entry_to_add={
-                KANJI_COLNAME: list(uniq_kanjis_w_toks.keys()),
-                ASSOCIATED_TOKS_FROM_SOURCE_COLNAME: list(
+                ColumnName.KANJI: list(uniq_kanjis_w_toks.keys()),
+                ColumnName.ASSOCIATED_TOKS_FROM_SOURCE: list(
                     uniq_kanjis_w_toks.values()
                 ),
-                IS_KNOWN_COLNAME: [
+                ColumnName.IS_KNOWN: [
                     pd.NA for i in range(len(uniq_kanjis_w_toks))
                 ],
-                IS_ADDED_TO_ANKI_COLNAME: [
+                ColumnName.IS_ADDED_TO_ANKI: [
                     False for i in range(len(uniq_kanjis_w_toks))
                 ],
-                IS_SUPSENDED_FOR_SOURCE_COLNAME: [
+                ColumnName.IS_SUSPENDED_FOR_SOURCE: [
                     False for i in range(len(uniq_kanjis_w_toks))
                 ],
-                SOURCE_NAME_COLNAME: [
+                ColumnName.SOURCE_NAME: [
                     doc_name for i in range(len(uniq_kanjis_w_toks))
                 ],
             },
-            table_name=KANJI_TABLE_NAME,
-            item_colname=KANJI_COLNAME,
+            table_name=TableName.KANJIS,
+            item_colname=ColumnName.KANJI,
         )
         # To self - extracted sequences
         self._add_items(
             entry_to_add={
-                SEQ_ID_COLNAME: list(sentid_sent_toks.keys()),
-                SEQ_COLNAME: [v[0] for v in sentid_sent_toks.values()],
-                ASSOCIATED_TOKS_FROM_SOURCE_COLNAME: [
+                ColumnName.SEQ_ID: list(sentid_sent_toks.keys()),
+                ColumnName.SEQ: [v[0] for v in sentid_sent_toks.values()],
+                ColumnName.ASSOCIATED_TOKS_FROM_SOURCE: [
                     v[1] for v in sentid_sent_toks.values()
                 ],
-                SOURCE_NAME_COLNAME: [
+                ColumnName.SOURCE_NAME: [
                     doc_name for i in range(len(sentid_sent_toks))
                 ],
             },
-            table_name=SEQ_TABLE_NAME,
+            table_name=TableName.SEQS,
         )
         # Save in kb
         logger.info(f"-- Added {doc_name=} to kb.")
@@ -310,18 +321,18 @@ class KnowledgeBase:
     def _add_items(
         self,
         entry_to_add: dict[ColName, Values],
-        table_name: Literal[TOKEN_TABLE_NAME, KANJI_TABLE_NAME, SEQ_TABLE_NAME],
+        table_name: Literal[TableName.TOKENS, TableName.KANJIS, TableName.SEQS],
         item_colname: Optional[ColName] = None,
     ) -> None:
         """Add item to the table
 
         Args:
             entry_to_add (dict[ColName, Values]): row to add to the table
-            table_name (Literal[TOKEN_TABLE_NAME, KANJI_TABLE_NAME,
-                SEQ_TABLE_NAME]): name of the table
+            table_name (Literal[TableName.TOKENS, TableName.KANJIS,
+                TableName.SEQS]): name of the table
             item_colname (Optional[ColName]): if specified, will check that if
                 the new entry shares values of `item_colname` with another
-                entry, then it will take the value of IS_KNOWN_COLNAME from
+                entry, then it will take the value of ColumnName.IS_KNOWN from
                 that other entry. For instance, if we add a token frm a new
                 source, but that token already existed in the database and was
                 marked as known, then the new entry will also be
@@ -354,20 +365,20 @@ class KnowledgeBase:
                 # Check conditions separetely
                 table = self.__dict__[table_name]
                 value_exists = table[item_colname] == index_value
-                value_know = table[IS_KNOWN_COLNAME].isin([True])  # Handle NA
-                value_added_to_anki = table[IS_ADDED_TO_ANKI_COLNAME] == True
-                if table_name == TOKEN_TABLE_NAME:
-                    value_to_be_studied = table[TO_BE_STUDIED_FROM_DATE_COLNAME].apply(
+                value_know = table[ColumnName.IS_KNOWN].isin([True])  # Handle NA
+                value_added_to_anki = table[ColumnName.IS_ADDED_TO_ANKI] == True
+                if table_name == TableName.TOKENS:
+                    value_to_be_studied = table[ColumnName.TO_BE_STUDIED_FROM].apply(
                         lambda x: False
                         if type(x) is not datetime.date
                         else True
                     )
                 # Put the conditions together
-                if table_name == TOKEN_TABLE_NAME:
+                if table_name == TableName.TOKENS:
                     value_exists_and_marked = value_exists & (
                         value_know | value_added_to_anki | value_to_be_studied
                     )
-                elif table_name == KANJI_TABLE_NAME:
+                elif table_name == TableName.KANJIS:
                     value_exists_and_marked = value_exists & (
                         value_know | value_added_to_anki
                     )
@@ -381,7 +392,7 @@ class KnowledgeBase:
                         "date (if token table). Mark it as"
                         " know in the added items as well."
                     )
-                    items_to_add[IS_KNOWN_COLNAME][obs_i] = True
+                    items_to_add[ColumnName.IS_KNOWN][obs_i] = True
         # Add the values
         self.__dict__[table_name] = pd.concat(
             [
@@ -396,8 +407,8 @@ class KnowledgeBase:
         item_value: str,
         item_colname: ColName,
         table_name: Literal[
-            TOKEN_TABLE_NAME,
-            KANJI_TABLE_NAME,
+            TableName.TOKENS,
+            TableName.KANJIS,
         ],
     ) -> None:
         """Set item to known
@@ -407,8 +418,8 @@ class KnowledgeBase:
             item_colname (ColName): column on which we should look for
                 `item_value`
             table_name (Literal[
-                    TOKEN_TABLE_NAME,
-                    KANJI_TABLE_NAME,
+                    TableName.TOKENS,
+                    TableName.KANJIS,
                 ]): name of the table
 
         Returns:
@@ -422,15 +433,15 @@ class KnowledgeBase:
                 f"{item_value=} cannot be found in {table_name}[{item_colname}]"
             )
         # Set to known in all sources
-        self.__dict__[table_name].loc[is_item, IS_KNOWN_COLNAME] = True
+        self.__dict__[table_name].loc[is_item, ColumnName.IS_KNOWN] = True
 
     def set_item_to_unknown(
         self,
         item_value: str,
         item_colname: ColName,
         table_name: Literal[
-            TOKEN_TABLE_NAME,
-            KANJI_TABLE_NAME,
+            TableName.TOKENS,
+            TableName.KANJIS,
         ],
     ) -> None:
         """Inverse of `set_item_to_known`"""
@@ -442,7 +453,7 @@ class KnowledgeBase:
                 f"{item_value=} cannot be found in {table_name}[{item_colname}]"
             )
         # Set to unknown in all sources
-        self.__dict__[table_name].loc[is_item, IS_KNOWN_COLNAME] = False
+        self.__dict__[table_name].loc[is_item, ColumnName.IS_KNOWN] = False
 
     def set_item_to_added_to_anki(
         self,
@@ -450,8 +461,8 @@ class KnowledgeBase:
         source_name: str,
         item_colname: ColName,
         table_name: Literal[
-            TOKEN_TABLE_NAME,
-            KANJI_TABLE_NAME,
+            TableName.TOKENS,
+            TableName.KANJIS,
         ],
     ) -> None:
         """Set item as added to Anki and known
@@ -462,8 +473,8 @@ class KnowledgeBase:
             item_colname (ColName): column in which we will look for
                 `item_value`
             table_name (Literal[
-                    TOKEN_TABLE_NAME,
-                    KANJI_TABLE_NAME,
+                    TableName.TOKENS,
+                    TableName.KANJIS,
                 ]): name of the table
 
         Returns:
@@ -472,7 +483,7 @@ class KnowledgeBase:
         # Find where item_colname is equal to item_value
         is_item = self.__dict__[table_name][item_colname] == item_value
         is_source = (
-            self.__dict__[table_name][SOURCE_NAME_COLNAME] == source_name
+            self.__dict__[table_name][ColumnName.SOURCE_NAME] == source_name
         )
         # Sanity
         if not any(is_item):
@@ -481,7 +492,7 @@ class KnowledgeBase:
             )
         # Set to added to anki in all sources
         self.__dict__[table_name].loc[
-            is_item & is_source, IS_ADDED_TO_ANKI_COLNAME
+            is_item & is_source, ColumnName.IS_ADDED_TO_ANKI
         ] = True
 
     def set_item_to_suspended_for_source(
@@ -490,8 +501,8 @@ class KnowledgeBase:
         source_name: str,
         item_colname: ColName,
         table_name: Literal[
-            TOKEN_TABLE_NAME,
-            KANJI_TABLE_NAME,
+            TableName.TOKENS,
+            TableName.KANJIS,
         ],
     ) -> None:
         """Set item as suspended for a given source
@@ -502,8 +513,8 @@ class KnowledgeBase:
             item_colname (ColName): column in which we will look for
                 `item_value`
             table_name (Literal[
-                    TOKEN_TABLE_NAME,
-                    KANJI_TABLE_NAME,
+                    TableName.TOKENS,
+                    TableName.KANJIS,
                 ]): name of the table
 
         Returns:
@@ -512,7 +523,7 @@ class KnowledgeBase:
         # Find where item_colname is equal to item_value
         is_item = self.__dict__[table_name][item_colname] == item_value
         is_source = (
-            self.__dict__[table_name][SOURCE_NAME_COLNAME] == source_name
+            self.__dict__[table_name][ColumnName.SOURCE_NAME] == source_name
         )
         # Sanity
         if not any(is_item):
@@ -521,7 +532,7 @@ class KnowledgeBase:
             )
         # Set to known in all sources
         self.__dict__[table_name].loc[
-            is_item & is_source, IS_SUPSENDED_FOR_SOURCE_COLNAME
+            is_item & is_source, ColumnName.IS_SUSPENDED_FOR_SOURCE
         ] = True
 
     def set_study_from_date_for_token_source(
@@ -532,28 +543,28 @@ class KnowledgeBase:
     ) -> None:
         """Set the 'study from' date for item
 
-        The date is stored in TO_BE_STUDIED_FROM_DATE_COLNAME
+        The date is stored in ColumnName.TO_BE_STUDIED_FROM
         """
-        # Find where TOKEN_COLNAME is equal to item_value
-        is_item = self.__dict__[TOKEN_TABLE_NAME][TOKEN_COLNAME] == token_value
+        # Find where ColumnName.TOKEN is equal to item_value
+        is_item = self.__dict__[TableName.TOKENS][ColumnName.TOKEN] == token_value
         is_source = (
-            self.__dict__[TOKEN_TABLE_NAME][SOURCE_NAME_COLNAME] == source_name
+            self.__dict__[TableName.TOKENS][ColumnName.SOURCE_NAME] == source_name
         )
         # Sanity
         if not any(is_item):
             raise ValueError(
-                f"{token_value=} cannot be found in {TOKEN_TABLE_NAME}[{TOKEN_COLNAME}]"
+                f"{token_value=} cannot be found in {TableName.TOKENS}[{ColumnName.TOKEN}]"
             )
         # Set data
-        self.__dict__[TOKEN_TABLE_NAME].loc[
-            is_item & is_source, TO_BE_STUDIED_FROM_DATE_COLNAME
+        self.__dict__[TableName.TOKENS].loc[
+            is_item & is_source, ColumnName.TO_BE_STUDIED_FROM
         ] = date
 
     def get_items(
         self,
         table_name: Literal[
-            TOKEN_TABLE_NAME,
-            KANJI_TABLE_NAME,
+            TableName.TOKENS,
+            TableName.KANJIS,
         ],
         only_not_added: bool,
         only_not_known: bool,
@@ -570,17 +581,17 @@ class KnowledgeBase:
 
         Args:
             table_name (Literal[
-                    TOKEN_TABLE_NAME,
-                    KANJI_TABLE_NAME,
+                    TableName.TOKENS,
+                    TableName.KANJIS,
                 ]): table name
             only_not_added (bool): retrieve only those items with no True in
-                IS_ADDED_TO_ANKI_COLNAME.
+                ColumnName.IS_ADDED_TO_ANKI.
             only_not_known (bool): retrieve only those items with no True in
-                IS_KNOWN_COLNAME (all False or NA.)
+                ColumnName.IS_KNOWN (all False or NA.)
             only_not_added (bool): retrieve only those items with no True in
-                IS_SUPSENDED_FOR_SOURCE_COLNAME.
+                ColumnName.IS_SUSPENDED_FOR_SOURCE.
             only_not_added (bool): only with no study date specified in
-                TO_BE_STUDIED_FROM_DATE_COLNAME
+                ColumnName.TO_BE_STUDIED_FROM
             item_value (Optional[str]): value of the item. `item_colname` must
                 be set.
             item_colname (Optional[ColName]): name of the column in which to
@@ -608,36 +619,36 @@ class KnowledgeBase:
             is_items_rows = is_items_rows & (df[item_colname] == item_value)
         if source_name is not None:
             is_items_rows = is_items_rows & (
-                df[SOURCE_NAME_COLNAME] == source_name
+                df[ColumnName.SOURCE_NAME] == source_name
             )
         if only_not_added:
             is_items_rows = is_items_rows & (
-                df[IS_ADDED_TO_ANKI_COLNAME] == False
+                df[ColumnName.IS_ADDED_TO_ANKI] == False
             )
         if only_not_known:
             is_items_rows = is_items_rows & (
-                (df[IS_KNOWN_COLNAME] == False) | (df[IS_KNOWN_COLNAME].isna())
+                (df[ColumnName.IS_KNOWN] == False) | (df[ColumnName.IS_KNOWN].isna())
             )
         if only_not_suspended:
             is_items_rows = is_items_rows & (
-                df[IS_SUPSENDED_FOR_SOURCE_COLNAME] == False
+                df[ColumnName.IS_SUSPENDED_FOR_SOURCE] == False
             )
         if only_no_study_date:
             # No study date on kanji
-            if table_name == KANJI_TABLE_NAME:
+            if table_name == TableName.KANJIS:
                 pass
             else:
                 is_items_rows = is_items_rows & (
-                    df[TO_BE_STUDIED_FROM_DATE_COLNAME].isnull()
+                    df[ColumnName.TO_BE_STUDIED_FROM].isnull()
                 )
         if max_study_date is not None:
-            if table_name == KANJI_TABLE_NAME:
+            if table_name == TableName.KANJIS:
                 raise ValueError(
                     "`last_study_day` was provided but is not relevant to"
                     " kanjis"
                 )
             is_before_max_and_not_null = df.loc[
-                :, TO_BE_STUDIED_FROM_DATE_COLNAME
+                :, ColumnName.TO_BE_STUDIED_FROM
             ].apply(
                 lambda x: False
                 if type(x) is not datetime.date
@@ -650,7 +661,7 @@ class KnowledgeBase:
         """Remove doc from kb"""
         for table_name in DATA_MODEL.keys():
             rows_to_remove = (
-                self.__dict__[table_name][SOURCE_NAME_COLNAME] == doc_name
+                self.__dict__[table_name][ColumnName.SOURCE_NAME] == doc_name
             )
             self.__dict__[table_name] = self.__dict__[table_name][
                 ~rows_to_remove
@@ -666,9 +677,9 @@ class KnowledgeBase:
         max_tatoeba_examples: int,
         sanseido_manipulator: ManipulateSanseido,
         tatoeba_db: ManipulateTatoeba,
-        deepl_translator: deepl.Translator,
+        deepl_translator: Optional[deepl.Translator] = None,
         ex_linebreak_repl: Optional[str] = None,
-    ) -> VocabCard:
+    ) -> list[VocabCard]:
         """Make vocabulary card for `token` in `source_name`
 
         Args:
@@ -683,35 +694,36 @@ class KnowledgeBase:
             sanseido_manipulator (ManipulateSanseido): ManipulateSanseido
                 object
             tatoeba_db (ManipulateTatoeba): ManipulateTatoeba object
-            deepl_translator (deepl.Translator): deepl.Translator object
+            deepl_translator (Optional[deepl.Translator]): deepl.Translator object
             ex_linebreak_repl (Optional[str] = None): str to replace linebreaks
                 in examples
 
         Returns:
-            VocabCard
+            list[VocabCard]
         """
         # Get the associated entry
-        token_df = self.__dict__[TOKEN_TABLE_NAME]
-        is_entry = (token_df[TOKEN_COLNAME] == token) & (
-            token_df[SOURCE_NAME_COLNAME] == source_name
+        token_df = self.__dict__[TableName.TOKENS]
+        is_entry = (token_df[ColumnName.TOKEN] == token) & (
+            token_df[ColumnName.SOURCE_NAME] == source_name
         )
         # Sanity
         if sum(is_entry) == 0:
             raise ValueError(
-                f"{token=} cannot be found in {TOKEN_TABLE_NAME}[{TOKEN_COLNAME}]"
+                f"{token=} cannot be found in {TableName.TOKENS}[{ColumnName.TOKEN}]"
             )
         elif sum(is_entry) > 1:
             raise ValueError(
-                f"More than one {token=} found in {TOKEN_TABLE_NAME}[{TOKEN_COLNAME}]"
+                f"More than one {token=} found in {TableName.TOKENS}[{ColumnName.TOKEN}]"
             )
         # Make TokenInfo object (used as input in important methods)
-        entry = self.__dict__[TOKEN_TABLE_NAME][is_entry].iloc[0]
+        entry = self.__dict__[TableName.TOKENS][is_entry].iloc[0]
         token_info = TokenInfo(
-            lemma=entry[TOKEN_COLNAME],
-            count=entry[COUNT_COLNAME],
-            source_sent_ids=entry[SEQS_IDS_COLNAME],
-            source_name_str=entry[SOURCE_NAME_COLNAME],
+            lemma=entry[ColumnName.TOKEN],
+            count=entry[ColumnName.COUNT],
+            source_sent_ids=entry[ColumnName.SEQS_IDS],
+            source_name_str=entry[ColumnName.SOURCE_NAME],
         )
+        assert token_info.source_sent_ids is not None
         # Get the dictionary entries
         token_info.dict_entries = jamdict_utils.get_dict_entries(
             query=token_info.lemma,
@@ -733,12 +745,12 @@ class KnowledgeBase:
         sent_ids = token_info.source_sent_ids[
             : min(len(token_info.source_sent_ids), max_source_examples)
         ]
-        source_ex_df = self.__dict__[SEQ_TABLE_NAME]
+        source_ex_df = self.__dict__[TableName.SEQS]
         token_info.source_ex_str = [
             source_ex_df.loc[
-                (source_ex_df[SOURCE_NAME_COLNAME] == source_name)
-                & (source_ex_df[SEQ_ID_COLNAME] == sent_id),
-                SEQ_COLNAME,
+                (source_ex_df[ColumnName.SOURCE_NAME] == source_name)
+                & (source_ex_df[ColumnName.SEQ_ID] == sent_id),
+                ColumnName.SEQ,
             ].iloc[0]
             for sent_id in sent_ids
         ]
@@ -757,9 +769,9 @@ class KnowledgeBase:
                 ex.sent_eng for ex in tanaka_examples
             ]
         # Add translation
-        if translate_source_ex:
+        if translate_source_ex and deepl_translator is not None:
             token_info.source_ex_str_transl = [
-                deepl_translator.translate_text(
+                deepl_translator.translate_text(  # type: ignore[union-attr]
                     text=seq, source_lang="JA", target_lang="EN-US"
                 ).text
                 for seq in token_info.source_ex_str
@@ -786,26 +798,26 @@ class KnowledgeBase:
             KanjiCard
         """
         # Get the associated entry
-        kanji_df = self.__dict__[KANJI_TABLE_NAME]
-        is_entry = (kanji_df[KANJI_COLNAME] == kanji) & (
-            kanji_df[SOURCE_NAME_COLNAME] == source_name
+        kanji_df = self.__dict__[TableName.KANJIS]
+        is_entry = (kanji_df[ColumnName.KANJI] == kanji) & (
+            kanji_df[ColumnName.SOURCE_NAME] == source_name
         )
         # Sanity
         if sum(is_entry) == 0:
             raise ValueError(
-                f"{kanji=} cannot be found in {KANJI_TABLE_NAME}[{KANJI_COLNAME}]"
+                f"{kanji=} cannot be found in {TableName.KANJIS}[{ColumnName.KANJI}]"
             )
         elif sum(is_entry) > 1:
             raise ValueError(
                 f"More than one {kanji=} found in"
-                f" {KANJI_TABLE_NAME}[{KANJI_COLNAME}]"
+                f" {TableName.KANJIS}[{ColumnName.KANJI}]"
             )
-        entry = self.__dict__[KANJI_TABLE_NAME][is_entry].iloc[0]
+        entry = self.__dict__[TableName.KANJIS][is_entry].iloc[0]
         # Get KanjiInfo
         kanji_info = jamdict_utils.get_kanji_info(kanji=kanji)
         # Add source/tokens associated to the kanji
         kanji_info.source_name = source_name
-        kanji_info.seen_in_tokens = entry[ASSOCIATED_TOKS_FROM_SOURCE_COLNAME]
+        kanji_info.seen_in_tokens = entry[ColumnName.ASSOCIATED_TOKS_FROM_SOURCE]
         # Make into KanjiCard
         kanji_card = kanji_info_to_kanji_card(kanji_info=kanji_info)
         return kanji_card

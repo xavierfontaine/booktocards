@@ -19,11 +19,11 @@ def ordered_counts(it: Iterable) -> Dict[Any, Count]:
     counts = Counter(it)
     # Sort by appearance
     unique = ordered_unique(it=it)
-    counts = {k: counts[k] for k in unique}
-    return counts
+    counts_dict = {k: counts[k] for k in unique}
+    return counts_dict
 
 
-def ordered_unique(it: list) -> list:
+def ordered_unique(it: Iterable) -> list:
     """Same as set, but ordered by appearance order
 
     Args:
@@ -35,7 +35,7 @@ def ordered_unique(it: list) -> list:
     return list(dict.fromkeys(it))
 
 
-def argsort(l: List[Number]) -> List[int]:
+def argsort(l: List[int | float]) -> List[int]:
     """Return decreasing sorting as positions"""
     index = list(np.argsort(a=l))
     index.reverse()

@@ -15,18 +15,8 @@ from booktocards.jj_dicts import ManipulateSanseido
 from booktocards.tatoeba import ManipulateTatoeba
 from booktocards.text import get_unique_kanjis
 from booktocards.kb import (
-    TOKEN_TABLE_NAME,
-    KANJI_TABLE_NAME,
-    SEQ_TABLE_NAME,
-    SOURCE_NAME_COLNAME,
-    TOKEN_COLNAME,
-    KANJI_COLNAME,
-    SEQ_COLNAME,
-    IS_KNOWN_COLNAME,
-    IS_ADDED_TO_ANKI_COLNAME,
-    IS_SUPSENDED_FOR_SOURCE_COLNAME,
-    COUNT_COLNAME,
-    TO_BE_STUDIED_FROM_DATE_COLNAME,
+    TableName,
+    ColumnName,
 )
 from booktocards.scheduler import Scheduler, KanjiNotKnownError, EnoughItemsAddedError
 
@@ -52,26 +42,26 @@ def make_ag(df: pd.DataFrame) -> AgGridReturn:
 
 def extract_item_and_source_from_ag(
     ag_grid_output: AgGridReturn,
-    item_colname: Literal[TOKEN_COLNAME, KANJI_COLNAME],
+    item_colname: Literal[ColumnName.TOKEN, ColumnName.KANJI],
 ) -> list[(Union[Token, Kanji], SourceName)]:
     """Extract (item value, source name) info from selected table rows"""
     item_source_couples = []
     for select_row in ag_grid_output.selected_rows:
         couple = [
             select_row[item_colname],
-            select_row[SOURCE_NAME_COLNAME],
+            select_row[ColumnName.SOURCE_NAME],
         ]
         item_source_couples.append(couple)
     return item_source_couples
 
 
 def get_voc_df_w_date_until(max_date: date, session_state):
-    token_df: pd.DataFrame = session_state["kb"][TOKEN_TABLE_NAME]
+    token_df: pd.DataFrame = session_state["kb"][TableName.TOKENS]
     out_df = token_df[
-        (~token_df[TO_BE_STUDIED_FROM_DATE_COLNAME].isnull())
-        & (~token_df[IS_ADDED_TO_ANKI_COLNAME])
+        (~token_df[ColumnName.TO_BE_STUDIED_FROM].isnull())
+        & (~token_df[ColumnName.IS_ADDED_TO_ANKI])
     ]
-    out_df = out_df[out_df[TO_BE_STUDIED_FROM_DATE_COLNAME] <= max_date]
+    out_df = out_df[out_df[ColumnName.TO_BE_STUDIED_FROM] <= max_date]
     return out_df
 
 
@@ -120,10 +110,10 @@ for df_name in [
 # Shared variables
 # ================
 kb: KnowledgeBase = st.session_state["kb"]
-document_names = kb[TOKEN_TABLE_NAME][SOURCE_NAME_COLNAME].unique()
-token_df = kb[TOKEN_TABLE_NAME]
-kanji_df = kb[KANJI_TABLE_NAME]
-seq_df = kb[SEQ_TABLE_NAME]
+document_names = kb[TableName.TOKENS][ColumnName.SOURCE_NAME].unique()
+token_df = kb[TableName.TOKENS]
+kanji_df = kb[TableName.KANJIS]
+seq_df = kb[TableName.SEQS]
 
 
 # ================
@@ -145,29 +135,29 @@ doc_name = st.selectbox(
     label="Document name", options=document_names, key="doc_for_analysis"
 )
 n_tokens_in_source = token_df.loc[
-    (token_df[SOURCE_NAME_COLNAME] == doc_name)
-    & (token_df[COUNT_COLNAME] >= min_count),
-    COUNT_COLNAME,
+    (token_df[ColumnName.SOURCE_NAME] == doc_name)
+    & (token_df[ColumnName.COUNT] >= min_count),
+    ColumnName.COUNT,
 ].sum()
 n_unique_tokens_in_source = token_df[
-    (token_df[SOURCE_NAME_COLNAME] == doc_name)
-    & (token_df[COUNT_COLNAME] >= min_count)
+    (token_df[ColumnName.SOURCE_NAME] == doc_name)
+    & (token_df[ColumnName.COUNT] >= min_count)
 ].shape[0]
 n_unique_tokens_in_source_unknown = token_df[
-    (token_df[SOURCE_NAME_COLNAME] == doc_name)
-    & (token_df[COUNT_COLNAME] >= min_count)
+    (token_df[ColumnName.SOURCE_NAME] == doc_name)
+    & (token_df[ColumnName.COUNT] >= min_count)
     & (
-        (~token_df[IS_KNOWN_COLNAME]) |
-        (~(token_df[IS_ADDED_TO_ANKI_COLNAME]==True))
+        (~token_df[ColumnName.IS_KNOWN]) |
+        (~(token_df[ColumnName.IS_ADDED_TO_ANKI]==True))
     )
 ].shape[0]
 n_unique_kanjis_in_source = kanji_df[
-    kanji_df[SOURCE_NAME_COLNAME] == doc_name
+    kanji_df[ColumnName.SOURCE_NAME] == doc_name
 ].shape[0]
 n_unique_kanjis_in_source_unknown = kanji_df[
-    (kanji_df[SOURCE_NAME_COLNAME] == doc_name) & (
-        (~kanji_df[IS_KNOWN_COLNAME]) |
-        (~(kanji_df[IS_ADDED_TO_ANKI_COLNAME]==True))
+    (kanji_df[ColumnName.SOURCE_NAME] == doc_name) & (
+        (~kanji_df[ColumnName.IS_KNOWN]) |
+        (~(kanji_df[ColumnName.IS_ADDED_TO_ANKI]==True))
     )
 ].shape[0]
 st.markdown(
@@ -319,16 +309,16 @@ doc_name = st.selectbox(
 sort_by_seq_id = st.checkbox(label="Sort by id of first sequence", value=True)
 sort_by_count = st.checkbox(label="Sort by count", value=True)
 kb: KnowledgeBase = st.session_state["kb"]
-seq_df = kb[SEQ_TABLE_NAME]
+seq_df = kb[TableName.SEQS]
 st.write(seq_df[seq_df["seq_id"] == 418])
 #token_df=kb.get_items(
-#    table_name=TOKEN_TABLE_NAME,
+#    table_name=TableName.TOKENS,
 #    only_not_added=False,
 #    only_not_known=False,
 #    only_not_suspended=False,
 #    only_no_study_date=False, 
 #    #item_value="頷く",
-#    item_colname=TOKEN_COLNAME,
+#    item_colname=ColumnName.TOKEN,
 #    source_name=doc_name, 
 #    max_study_date=None
 #)
@@ -345,7 +335,7 @@ if len(scheduler.vocab_w_uncertain_status_df) == 0:
         studiable_tokens_df = studiable_tokens_df[:n_shown_tokens]
     studiable_tokens_ag = make_ag(df=studiable_tokens_df)
     st.session_state["selected_tok_src_cples"] = extract_item_and_source_from_ag(
-        ag_grid_output=studiable_tokens_ag, item_colname=TOKEN_COLNAME,
+        ag_grid_output=studiable_tokens_ag, item_colname=ColumnName.TOKEN,
     )
     # Allow to mark as known or suspended
     if st.button("Mark vocab as known", key="button_voc_known"):
@@ -381,7 +371,7 @@ else:
     kanjis_sources_to_check_ag = make_ag(df=kanjis_sources_to_check_df)
     st.session_state["selected_kanji_src_cples"] = extract_item_and_source_from_ag(
         ag_grid_output=kanjis_sources_to_check_ag,
-        item_colname=KANJI_COLNAME,
+        item_colname=ColumnName.KANJI,
     )
     # Set status
     if st.button("Mark kanji as known", key="button_kanji_known"):
@@ -406,8 +396,8 @@ else:
     # When all kanjis have been dealt with, try to add to next round, else to
     # rounds after
     if len(kanjis_sources_to_check_df) == 0:
-        for token, source_name in scheduler.vocab_w_uncertain_status_df[[TOKEN_COLNAME,
-                SOURCE_NAME_COLNAME]].values:
+        for token, source_name in scheduler.vocab_w_uncertain_status_df[[ColumnName.TOKEN,
+                ColumnName.SOURCE_NAME]].values:
             try:
                 scheduler.add_vocab_for_next_round(token=token, source_name=source_name)
             except KanjiNotKnownError:

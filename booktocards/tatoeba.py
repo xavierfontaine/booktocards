@@ -63,7 +63,7 @@ class ManipulateTatoeba:
             Tanaka, list the associated entries
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.tanaka_par_corpus: dict[SentenceId, TanakaEntry] = {}
         self.inverted_index: dict[Token, list[SentenceId]] = {}
         try:
@@ -77,7 +77,7 @@ class ManipulateTatoeba:
 
     def _make_corpus_and_index(
         self,
-    ):
+    ) -> None:
         """Extract and prepare Tanaka corpus + {token: sentence ids} index
 
         The output is attached to self.tanaka_par_corpus and
@@ -132,6 +132,7 @@ class ManipulateTatoeba:
         logger.info("-- Create inverted index")
         inverted_index: dict[Token, list[SentenceId]] = {}
         for _, entry in tqdm.tqdm(tanaka_par_corpus.items()):
+            assert entry.toks_jpn is not None
             for tok in entry.toks_jpn:
                 if tok in inverted_index:
                     inverted_index[tok].append(entry.idx)
@@ -141,7 +142,7 @@ class ManipulateTatoeba:
         self.tanaka_par_corpus = tanaka_par_corpus
         self.inverted_index = inverted_index
 
-    def _save(self, folder_path: str = _tanaka_folder_path):
+    def _save(self, folder_path: str = _tanaka_folder_path) -> None:
         """Save attributes to json"""
         if len(self.tanaka_par_corpus) == 0 or len(self.inverted_index) == 0:
             raise ValueError(
@@ -165,7 +166,7 @@ class ManipulateTatoeba:
                 )
             logger.info(f"-- Saved {filename} in {filepath}")
 
-    def _load(self, folder_path: str = _tanaka_folder_path):
+    def _load(self, folder_path: str = _tanaka_folder_path) -> None:
         """Load attributes from json"""
         # Get tanaka and deserialize
         filepath = os.path.join(folder_path, _TANAKA_CORPUS_FILENAME)

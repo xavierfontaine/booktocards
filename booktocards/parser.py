@@ -31,7 +31,7 @@ _N_LINES_PER_CHUNK = 500
 class ParseDocument:
     """Parse a document
 
-    Upon instanciation, extract all sentences and unique tokens from `doc`
+    Upon instantiating, extract all sentences and unique tokens from `doc`.
 
     Arguments
         doc (str)
@@ -39,7 +39,8 @@ class ParseDocument:
     Attributes
         tokens (dict[Token, [Count, list[SentenceId]]]): list of unique tokens in
             the doc.
-        sentences (dict[SentenceId, [Sentence, list[Token]]]): `sent` and their associated `lemmas`
+        sentences (dict[SentenceId, [Sentence, list[Token]]]): `sent` and their
+            associated `lemmas`.
     """
 
     def __init__(self, doc: str, sep_tok: Optional[str] = None):
@@ -92,14 +93,18 @@ class ParseDocument:
         }
         # For each, get associated sentence ids
         logger.info("Add sentence ids")
+        # Initialize {token: (count, [])} with counts
         lemma_counts_sentids: dict[Token, tuple[Count, list[SentenceId]]] = {
             lemma: (count, []) for lemma, count in lemma_counts
         }
+        # Add sentence ids
         for sent_id, [sent, toks] in tqdm.tqdm(sents_dict.items()):
             for tok in toks:
                 lemma_counts_sentids[tok][1].append(sent_id)
+        # Remove duplicates in sentence ids (in case of multiple occurrences
+        # in a sentence)
         for value in lemma_counts_sentids.values():
-            value[1] == list(set(value[1]))
+            value = (value[0], list(set(value[1])))
         # Attach to self
         self.tokens = lemma_counts_sentids
         self.sentences = sents_dict

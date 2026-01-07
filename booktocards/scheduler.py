@@ -3,28 +3,22 @@ Scheduling of studies
 """
 
 import copy
-import numpy as np
-from typing import Literal
 import datetime
-from datetime import date, timedelta
-from deepl import Translator
 import os
+from datetime import date, timedelta
+from typing import Literal, Optional
+
+import numpy as np
 import pandas as pd
-from typing import Optional
+from deepl import Translator
 
 from booktocards import io
-from booktocards.annotations import Token, Kanji, SourceName, FilePath
-from booktocards.datacl import VocabCard, KanjiCard
-from booktocards.kb import KnowledgeBase
-from booktocards.kb import (
-    DATA_MODEL,
-    TableName,
-    ColumnName,
-)
+from booktocards.annotations import FilePath, Kanji, SourceName, Token
+from booktocards.datacl import KanjiCard, VocabCard
 from booktocards.jj_dicts import ManipulateSanseido
+from booktocards.kb import DATA_MODEL, ColumnName, KnowledgeBase, TableName
 from booktocards.tatoeba import ManipulateTatoeba
 from booktocards.text import get_unique_kanjis
-
 
 # TODO: nothing should be set as known, added, suspendend, or have a due date
 # until end_scheduling is called.

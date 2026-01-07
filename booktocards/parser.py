@@ -2,17 +2,17 @@
 Parsers for file and documents
 """
 
-import pandas as pd
 import logging
 from functools import reduce
 from typing import Optional
+
+import pandas as pd
 import tqdm
 
-from booktocards import sudachi as jp_sudachi
-from booktocards import spacy_utils as jp_spacy
 from booktocards import iterables
-from booktocards.annotations import Token, Count, SentenceId, Sentence
-
+from booktocards import spacy_utils as jp_spacy
+from booktocards import sudachi as jp_sudachi
+from booktocards.annotations import Count, Sentence, SentenceId, Token
 
 # ======
 # Logger

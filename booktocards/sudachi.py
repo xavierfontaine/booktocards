@@ -1,8 +1,8 @@
-from typing import Optional
-import sudachipy as sp
-from typing import List, Tuple
-from booktocards.annotations import DictForm, Pos, SubPos
+from typing import List, Optional, Tuple
 
+import sudachipy as sp
+
+from booktocards.annotations import DictForm, Pos, SubPos
 
 # =========
 # Constants

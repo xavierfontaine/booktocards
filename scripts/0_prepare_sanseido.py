@@ -1,9 +1,9 @@
-import deepl
 import logging
 import os
 
-from booktocards import jj_dicts, io
+import deepl
 
+from booktocards import io, jj_dicts
 
 # =========
 # Constants

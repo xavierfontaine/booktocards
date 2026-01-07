@@ -1,9 +1,10 @@
 import copy
-from jamdict import Jamdict, jmdict
 from typing import List
-from booktocards.datacl import ParsedDictEntry, KanjiInfo
+
+from jamdict import Jamdict, jmdict
 
 from booktocards.annotations import Kanji
+from booktocards.datacl import KanjiInfo, ParsedDictEntry
 from booktocards.text import get_unique_kanjis
 
 jam = Jamdict(memory_mode=True)

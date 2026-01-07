@@ -2,19 +2,19 @@
 Handle tatoeba corpus
 """
 
-from dataclasses import dataclass
+import json
 import logging
 import os
-import json
 import pickle
-from tatoebatools import tatoeba, ParallelCorpus
+from dataclasses import dataclass
 from typing import Optional
+
 import tqdm
+from tatoebatools import ParallelCorpus, tatoeba
 
 from booktocards import io
-from booktocards.annotations import Token, SentenceId, Sentence, SubPos
+from booktocards.annotations import Sentence, SentenceId, SubPos, Token
 from booktocards.sudachi import Tokenizer
-
 
 # ======
 # Logger

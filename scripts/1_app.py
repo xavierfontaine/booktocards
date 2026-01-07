@@ -1,24 +1,21 @@
-import deepl
 import os
-import pandas as pd
-import streamlit as st
 from datetime import date, timedelta
 from io import StringIO
-from st_aggrid import AgGrid, GridOptionsBuilder, AgGridReturn
 from typing import Literal, Union
 
+import deepl
+import pandas as pd
+import streamlit as st
+from st_aggrid import AgGrid, AgGridReturn, GridOptionsBuilder
+
 from booktocards import io
-from booktocards.annotations import Token, Kanji, SourceName
-from booktocards.datacl import VocabCard, KanjiCard
-from booktocards.kb import KnowledgeBase
+from booktocards.annotations import Kanji, SourceName, Token
+from booktocards.datacl import KanjiCard, VocabCard
 from booktocards.jj_dicts import ManipulateSanseido
+from booktocards.kb import ColumnName, KnowledgeBase, TableName
+from booktocards.scheduler import EnoughItemsAddedError, KanjiNotKnownError, Scheduler
 from booktocards.tatoeba import ManipulateTatoeba
 from booktocards.text import get_unique_kanjis
-from booktocards.kb import (
-    TableName,
-    ColumnName,
-)
-from booktocards.scheduler import Scheduler, KanjiNotKnownError, EnoughItemsAddedError
 
 
 # =========

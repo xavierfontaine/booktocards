@@ -1,14 +1,13 @@
 import json
 import logging
 import os
-import yaml
-from yaml import CLoader, CDumper
 import pickle
-import json
+
+import yaml
+from yaml import CDumper, CLoader
 
 from booktocards import io
-from booktocards.annotations import DictForm, Reading, Definition
-
+from booktocards.annotations import Definition, DictForm, Reading
 
 # ======
 # Logger

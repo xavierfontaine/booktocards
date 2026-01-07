@@ -1,14 +1,11 @@
 import datetime
-import pandas as pd
-import pytest
 import os
 
+import pandas as pd
+import pytest
+
 import booktocards.kb
-from booktocards.kb import (
-    DATA_MODEL,
-    TableName,
-    ColumnName,
-)
+from booktocards.kb import DATA_MODEL, ColumnName, TableName
 
 # Common to all tests
 exp_self_tables = [TableName.TOKENS, TableName.KANJIS, TableName.SEQS]

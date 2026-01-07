@@ -3,26 +3,24 @@ Test level: integration (requires db, sanseido, jj to work well)
 """
 
 import os
+from datetime import timedelta
+from unittest.mock import Mock
+
 import pandas as pd
 import pytest
-from unittest.mock import Mock
-from datetime import timedelta
 
-from booktocards.kb import (
-    TableName,
-    ColumnName,
-)
 import booktocards.kb
 import booktocards.scheduler
+from booktocards.jj_dicts import ManipulateSanseido
+from booktocards.kb import ColumnName, TableName
 from booktocards.scheduler import (
-    NoAddableEntryError,
     EnoughItemsAddedError,
     KanjiNotKnownError,
     KanjiNotKnownOrAddedError,
+    NoAddableEntryError,
     UncertainVocRemainError,
 )
 from booktocards.tatoeba import ManipulateTatoeba
-from booktocards.jj_dicts import ManipulateSanseido
 
 
 def test_add_voc_with_known_kanjis(monkeypatch, tmp_path):

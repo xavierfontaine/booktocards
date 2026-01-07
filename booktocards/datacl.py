@@ -1,16 +1,17 @@
 import copy
 import re
 from dataclasses import dataclass, field
+from typing import Dict, List, Optional
+
 from jamdict import jmdict
-from typing import List, Optional, Dict
 
 from booktocards.annotations import (
-    Pos,
     Count,
-    SentenceId,
-    Sentence,
-    Reading,
     Definition,
+    Pos,
+    Reading,
+    Sentence,
+    SentenceId,
 )
 
 

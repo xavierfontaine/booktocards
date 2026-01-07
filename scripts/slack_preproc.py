@@ -9,20 +9,20 @@ additionnal sentence separator in 0_app.py
   is done at the file level.
 """
 
-from dataclasses import dataclass
-import ftlangdetect
 import json
 import logging
 import os
-from pathlib import Path
 import random
 import re
-from typing import Annotated, Optional
-from tqdm import tqdm
 import warnings
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Annotated, Optional
+
+import ftlangdetect
+from tqdm import tqdm
 
 from booktocards import io as b2c_io
-
 
 # =========
 # Constants

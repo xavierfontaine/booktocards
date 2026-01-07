@@ -1,9 +1,10 @@
-import numpy as np
-from typing import Iterable, Dict, Any, List
 from collections import Counter
 from numbers import Number
+from typing import Any, Dict, Iterable, List
 
-from booktocards.annotations import Token, Count
+import numpy as np
+
+from booktocards.annotations import Count, Token
 
 
 def ordered_counts(it: Iterable) -> Dict[Any, Count]:

@@ -1,12 +1,12 @@
-import spacy
-import math
-import tqdm
 import itertools as it
 import logging
-from typing import List, Tuple, Optional, Iterable
+import math
+from typing import Iterable, List, Optional, Tuple
 
-from booktocards.annotations import DictForm, Pos, Token, Sentence
+import spacy
+import tqdm
 
+from booktocards.annotations import DictForm, Pos, Sentence, Token
 
 # ======
 # Logger

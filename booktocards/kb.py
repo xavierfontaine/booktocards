@@ -1,28 +1,25 @@
 import copy
 import datetime
-from typing import Literal, Optional, TypeAlias
-import os
-import pandas as pd
 import logging
-import deepl
+import os
 from enum import Enum
+from typing import Literal, Optional, TypeAlias
 
+import deepl
+import pandas as pd
 
-from booktocards import io
-from booktocards import parser
-from booktocards.text import get_unique_kanjis, is_only_ascii_alphanum
+from booktocards import io, jamdict_utils, parser
 from booktocards.annotations import ColName, Values
-from booktocards import jamdict_utils
 from booktocards.datacl import (
+    KanjiCard,
     TokenInfo,
     VocabCard,
-    token_info_to_voc_cards,
-    KanjiCard,
     kanji_info_to_kanji_card,
+    token_info_to_voc_cards,
 )
-from booktocards.tatoeba import ManipulateTatoeba
 from booktocards.jj_dicts import ManipulateSanseido
-
+from booktocards.tatoeba import ManipulateTatoeba
+from booktocards.text import get_unique_kanjis, is_only_ascii_alphanum
 
 # ======
 # Logger

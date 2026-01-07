@@ -70,7 +70,7 @@ class VocabCard:
 def token_info_to_voc_cards(
     token_info: TokenInfo,
     ex_linebreak_repl: Optional[str] = None,
-    source_name: Optional[str] = None
+    source_name: Optional[str] = None,
 ) -> List[VocabCard]:
     """Transform a TokenInfo into a VocabCard
 
@@ -113,8 +113,7 @@ def token_info_to_voc_cards(
             source_ex_w_transl = token_info.source_ex_str
             if ex_linebreak_repl is not None:
                 source_ex_w_transl = [
-                    re.sub("[\n\r]+", " // ", ex)
-                    for ex in source_ex_w_transl
+                    re.sub("[\n\r]+", " // ", ex) for ex in source_ex_w_transl
                 ]
             if source_name is not None:
                 source_ex_w_transl = [
@@ -123,10 +122,7 @@ def token_info_to_voc_cards(
             if token_info.source_ex_str_transl not in [None, []]:
                 transl_ex = token_info.source_ex_str_transl
                 if ex_linebreak_repl is not None:
-                    transl_ex = [
-                        re.sub("[\n\r]+", " // ", ex)
-                        for ex in transl_ex
-                    ]
+                    transl_ex = [re.sub("[\n\r]+", " // ", ex) for ex in transl_ex]
                 for i, transl in enumerate(transl_ex):
                     source_ex_w_transl[i] += f" ({transl})"
             card.examples_str += "# " + "\n# ".join(source_ex_w_transl)
@@ -138,18 +134,14 @@ def token_info_to_voc_cards(
             tatoeba_ext_str_transl = token_info.tatoeba_ex_str_transl
             if ex_linebreak_repl is not None:
                 tatoeba_ext_str = [
-                    re.sub("[\n\r]+", " // ", ex)
-                    for ex in tatoeba_ext_str
+                    re.sub("[\n\r]+", " // ", ex) for ex in tatoeba_ext_str
                 ]
                 tatoeba_ext_str_transl = [
-                    re.sub("[\n\r]+", " // ", ex)
-                    for ex in tatoeba_ext_str_transl
+                    re.sub("[\n\r]+", " // ", ex) for ex in tatoeba_ext_str_transl
                 ]
             tatoeba_ex_w_transl = [
                 f"[tatoeba] {jpn} ({eng})"
-                for jpn, eng in zip(
-                     tatoeba_ext_str, tatoeba_ext_str_transl
-                )
+                for jpn, eng in zip(tatoeba_ext_str, tatoeba_ext_str_transl)
             ]
             card.examples_str += "# " + "\n# ".join(tatoeba_ex_w_transl)
         # Add jj definition

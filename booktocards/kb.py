@@ -109,6 +109,7 @@ _kb_dirpath = os.path.join(
     _KB_OUT_DIRNAME,
 )
 
+
 # KB class
 class KnowledgeBase:
     """Knowledge base for vocabulary and kanji
@@ -143,9 +144,7 @@ class KnowledgeBase:
                     ColumnName.IS_KNOWN,
                     ColumnName.IS_SUSPENDED_FOR_SOURCE,
                 ]:
-                    self[df_name][col_name] = self[df_name][col_name].astype(
-                        "bool"
-                    )
+                    self[df_name][col_name] = self[df_name][col_name].astype("bool")
             self.save_kb()
             logger.info(f"-- Initialized and saved")
 
@@ -209,8 +208,11 @@ class KnowledgeBase:
                 self._save_df(df_name=df_name, is_backup=True)
 
     def add_doc(
-            self, doc: str, doc_name: str, drop_ascii_alphanum_toks: bool,
-            sep_tok: Optional[str] = None
+        self,
+        doc: str,
+        doc_name: str,
+        drop_ascii_alphanum_toks: bool,
+        sep_tok: Optional[str] = None,
     ) -> None:
         """Parse a document and add it's voc and sentences to kb
 
@@ -223,12 +225,10 @@ class KnowledgeBase:
             sep_tok (Optional[str]): special token for sentence separation
         """
         if (
-            doc_name
-            in self.__dict__[TableName.TOKENS][ColumnName.SOURCE_NAME].values
+            doc_name in self.__dict__[TableName.TOKENS][ColumnName.SOURCE_NAME].values
             or doc_name
             in self.__dict__[TableName.KANJIS][ColumnName.SOURCE_NAME].values
-            or doc_name
-            in self.__dict__[TableName.SEQS][ColumnName.SOURCE_NAME].values
+            or doc_name in self.__dict__[TableName.SEQS][ColumnName.SOURCE_NAME].values
         ):
             raise ValueError(
                 f"Trying to add {doc_name=} to the kb, but already exists. Use"
@@ -262,9 +262,7 @@ class KnowledgeBase:
                 ColumnName.SOURCE_NAME: [
                     doc_name for i in range(len(token_count_sentid))
                 ],
-                ColumnName.IS_KNOWN: [
-                    pd.NA for i in range(len(token_count_sentid))
-                ],
+                ColumnName.IS_KNOWN: [pd.NA for i in range(len(token_count_sentid))],
                 ColumnName.IS_ADDED_TO_ANKI: [
                     False for i in range(len(token_count_sentid))
                 ],
@@ -285,9 +283,7 @@ class KnowledgeBase:
                 ColumnName.ASSOCIATED_TOKS_FROM_SOURCE: list(
                     uniq_kanjis_w_toks.values()
                 ),
-                ColumnName.IS_KNOWN: [
-                    pd.NA for i in range(len(uniq_kanjis_w_toks))
-                ],
+                ColumnName.IS_KNOWN: [pd.NA for i in range(len(uniq_kanjis_w_toks))],
                 ColumnName.IS_ADDED_TO_ANKI: [
                     False for i in range(len(uniq_kanjis_w_toks))
                 ],
@@ -343,9 +339,7 @@ class KnowledgeBase:
         """
         items_to_add = copy.deepcopy(entry_to_add)
         # Check keys
-        if set(items_to_add.keys()) != set(
-            self.__dict__[table_name].columns.to_list()
-        ):
+        if set(items_to_add.keys()) != set(self.__dict__[table_name].columns.to_list()):
             raise KeyError(
                 f"Keys in `items_to_add` are {items_to_add.keys()}, but should be"
                 f" {DATA_MODEL[table_name]}"
@@ -369,9 +363,7 @@ class KnowledgeBase:
                 value_added_to_anki = table[ColumnName.IS_ADDED_TO_ANKI] == True
                 if table_name == TableName.TOKENS:
                     value_to_be_studied = table[ColumnName.TO_BE_STUDIED_FROM].apply(
-                        lambda x: False
-                        if type(x) is not datetime.date
-                        else True
+                        lambda x: False if type(x) is not datetime.date else True
                     )
                 # Put the conditions together
                 if table_name == TableName.TOKENS:
@@ -400,7 +392,6 @@ class KnowledgeBase:
                 pd.DataFrame(items_to_add).astype(DATA_MODEL[table_name]),
             ]
         )
-
 
     def set_item_to_known(
         self,
@@ -482,9 +473,7 @@ class KnowledgeBase:
         """
         # Find where item_colname is equal to item_value
         is_item = self.__dict__[table_name][item_colname] == item_value
-        is_source = (
-            self.__dict__[table_name][ColumnName.SOURCE_NAME] == source_name
-        )
+        is_source = self.__dict__[table_name][ColumnName.SOURCE_NAME] == source_name
         # Sanity
         if not any(is_item):
             raise ValueError(
@@ -522,9 +511,7 @@ class KnowledgeBase:
         """
         # Find where item_colname is equal to item_value
         is_item = self.__dict__[table_name][item_colname] == item_value
-        is_source = (
-            self.__dict__[table_name][ColumnName.SOURCE_NAME] == source_name
-        )
+        is_source = self.__dict__[table_name][ColumnName.SOURCE_NAME] == source_name
         # Sanity
         if not any(is_item):
             raise ValueError(
@@ -608,23 +595,15 @@ class KnowledgeBase:
         if only_no_study_date and max_study_date is not None:
             raise ValueError(f"{only_no_study_date=} but {max_study_date=}")
         # Identify rows
-        is_items_rows = pd.Series(
-            True, index=df.index
-        )
+        is_items_rows = pd.Series(True, index=df.index)
         if item_value is not None:
             if item_colname is None:
-                raise ValueError(
-                    "`item_colname` must be set when `item_value` is set."
-                )
+                raise ValueError("`item_colname` must be set when `item_value` is set.")
             is_items_rows = is_items_rows & (df[item_colname] == item_value)
         if source_name is not None:
-            is_items_rows = is_items_rows & (
-                df[ColumnName.SOURCE_NAME] == source_name
-            )
+            is_items_rows = is_items_rows & (df[ColumnName.SOURCE_NAME] == source_name)
         if only_not_added:
-            is_items_rows = is_items_rows & (
-                df[ColumnName.IS_ADDED_TO_ANKI] == False
-            )
+            is_items_rows = is_items_rows & (df[ColumnName.IS_ADDED_TO_ANKI] == False)
         if only_not_known:
             is_items_rows = is_items_rows & (
                 (df[ColumnName.IS_KNOWN] == False) | (df[ColumnName.IS_KNOWN].isna())
@@ -644,15 +623,10 @@ class KnowledgeBase:
         if max_study_date is not None:
             if table_name == TableName.KANJIS:
                 raise ValueError(
-                    "`last_study_day` was provided but is not relevant to"
-                    " kanjis"
+                    "`last_study_day` was provided but is not relevant to" " kanjis"
                 )
-            is_before_max_and_not_null = df.loc[
-                :, ColumnName.TO_BE_STUDIED_FROM
-            ].apply(
-                lambda x: False
-                if type(x) is not datetime.date
-                else x <= max_study_date
+            is_before_max_and_not_null = df.loc[:, ColumnName.TO_BE_STUDIED_FROM].apply(
+                lambda x: False if type(x) is not datetime.date else x <= max_study_date
             )
             is_items_rows = is_items_rows & is_before_max_and_not_null
         return df[is_items_rows].copy()
@@ -663,9 +637,7 @@ class KnowledgeBase:
             rows_to_remove = (
                 self.__dict__[table_name][ColumnName.SOURCE_NAME] == doc_name
             )
-            self.__dict__[table_name] = self.__dict__[table_name][
-                ~rows_to_remove
-            ]
+            self.__dict__[table_name] = self.__dict__[table_name][~rows_to_remove]
             logger.info(f"-- Dropped {doc_name=} from {table_name}")
 
     def make_voc_cards(
@@ -738,9 +710,7 @@ class KnowledgeBase:
         ]
         # Add jj dict entry
         if token in sanseido_manipulator.sanseido_dict:
-            token_info.sanseido_dict_entries = (
-                sanseido_manipulator.sanseido_dict[token]
-            )
+            token_info.sanseido_dict_entries = sanseido_manipulator.sanseido_dict[token]
         # Get examples
         sent_ids = token_info.source_sent_ids[
             : min(len(token_info.source_sent_ids), max_source_examples)
@@ -761,13 +731,10 @@ class KnowledgeBase:
                 : min(len(tatoeba_ex_idx), max_tatoeba_examples)
             ]
             tanaka_examples = [
-                tatoeba_db.tanaka_par_corpus[sent_id]
-                for sent_id in tatoeba_ex_idx
+                tatoeba_db.tanaka_par_corpus[sent_id] for sent_id in tatoeba_ex_idx
             ]
             token_info.tatoeba_ex_str = [ex.sent_jpn for ex in tanaka_examples]
-            token_info.tatoeba_ex_str_transl = [
-                ex.sent_eng for ex in tanaka_examples
-            ]
+            token_info.tatoeba_ex_str_transl = [ex.sent_eng for ex in tanaka_examples]
         # Add translation
         if translate_source_ex and deepl_translator is not None:
             token_info.source_ex_str_transl = [
@@ -778,7 +745,9 @@ class KnowledgeBase:
             ]
         # Make card
         cards = token_info_to_voc_cards(
-            token_info=token_info, ex_linebreak_repl=ex_linebreak_repl, source_name=source_name
+            token_info=token_info,
+            ex_linebreak_repl=ex_linebreak_repl,
+            source_name=source_name,
         )
         # Return
         return cards

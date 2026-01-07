@@ -108,13 +108,9 @@ def parse_dict_entry(entry: jmdict.JMDEntry) -> ParsedDictEntry:
     # entry_id
     parsed_dict_entry.entry_id = dictified_entry["idseq"]
     # kana_forms
-    parsed_dict_entry.kana_forms = [
-        kana["text"] for kana in dictified_entry["kana"]
-    ]
+    parsed_dict_entry.kana_forms = [kana["text"] for kana in dictified_entry["kana"]]
     # kanji_forms
-    parsed_dict_entry.kanji_forms = [
-        kanj["text"] for kanj in dictified_entry["kanji"]
-    ]
+    parsed_dict_entry.kanji_forms = [kanj["text"] for kanj in dictified_entry["kanji"]]
     # meanings
     parsed_dict_entry.meanings = [
         gloss["text"]
@@ -162,9 +158,7 @@ def get_kanji_info(kanji: str) -> KanjiInfo:
     # Parse character entry
     readings_meanings = char_entry.to_dict()["rm"][0]
     meanings = [
-        mean["value"]
-        for mean in readings_meanings["meanings"]
-        if mean["m_lang"] == ""
+        mean["value"] for mean in readings_meanings["meanings"] if mean["m_lang"] == ""
     ]
     onyomis = [
         read["value"]

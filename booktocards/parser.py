@@ -1,6 +1,7 @@
 """
 Parsers for file and documents
 """
+
 import pandas as pd
 import logging
 from functools import reduce
@@ -45,29 +46,24 @@ class ParseDocument:
 
     def __init__(self, doc: str, sep_tok: Optional[str] = None):
         self.tokens: dict[Token, tuple[Count, list[SentenceId]]] = {}
-        self.sentences: dict[
-            SentenceId, tuple[Sentence, list[Token]]
-        ] = {}
+        self.sentences: dict[SentenceId, tuple[Sentence, list[Token]]] = {}
         self._sep_tok = sep_tok
         # Parse the doc and ill the above
         self._extract_tokens(doc=doc)
 
-    def _extract_tokens(
-        self, doc: str
-    ) -> None:
+    def _extract_tokens(self, doc: str) -> None:
         """Fill self.tokens and self.sentences"""
         # Sentencize
         logger.info("-- Sentencize")
         sents = list(
-            jp_spacy.sentencize(doc=doc, n_lines_per_chunk=_N_LINES_PER_CHUNK,
-                                sep_tok=self._sep_tok)
+            jp_spacy.sentencize(
+                doc=doc, n_lines_per_chunk=_N_LINES_PER_CHUNK, sep_tok=self._sep_tok
+            )
         )
         # Tokenize
         logger.info("-- Tokenize")
         tokenizer = jp_sudachi.Tokenizer()
-        tokenized_sents = [
-            tokenizer.tokenize(doc=sent) for sent in tqdm.tqdm(sents)
-        ]
+        tokenized_sents = [tokenizer.tokenize(doc=sent) for sent in tqdm.tqdm(sents)]
         # Filter on pos
         _ = [
             tokenizer.filter_on_pos(
@@ -76,9 +72,7 @@ class ParseDocument:
             for sent in tokenized_sents
         ]
         # Keep only lemmas
-        sents_lemmas = [
-            [lemma for lemma, _ in sent] for sent in tokenized_sents
-        ]
+        sents_lemmas = [[lemma for lemma, _ in sent] for sent in tokenized_sents]
         # Temporary store for full sentences and their lemmas
         sents_df = pd.DataFrame({"sent": sents, "lemmas": sents_lemmas})
         # Get unique (lemma, count)

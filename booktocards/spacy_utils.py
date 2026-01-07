@@ -35,9 +35,7 @@ class Tokenizer:
         nlp = spacy.load(
             name=spacy_model,
         )
-        nlp = nlp.from_config(
-            config={"nlp": {"tokenizer": {"split_mode": split_mode}}}
-        )
+        nlp = nlp.from_config(config={"nlp": {"tokenizer": {"split_mode": split_mode}}})
         # Attach as attribute
         self.nlp = nlp
 
@@ -98,18 +96,14 @@ def sentencize(
     # Get chunks...
     if n_lines_per_chunk is not None and sep_tok is None:
         # ... based on line breaks
-        logger.info(
-            f"Split the document into chunks of {n_lines_per_chunk} lines."
-        )
+        logger.info(f"Split the document into chunks of {n_lines_per_chunk} lines.")
         doc_chunks = _chunkify_on_linebreaks(
             doc=doc,
             n_lines_per_chunk=n_lines_per_chunk,
         )
     elif sep_tok is not None:
         # ... or on a separation token
-        logger.info(
-            f"Split the document into chuncks using the separator {sep_tok}."
-        )
+        logger.info(f"Split the document into chuncks using the separator {sep_tok}.")
         doc_chunks = doc.split(sep=sep_tok)
     else:
         # ... or don't
@@ -119,9 +113,7 @@ def sentencize(
         nlp(chunk) for chunk in tqdm.tqdm(doc_chunks, desc="Sentencize")
     ]
     chunks_sents = [
-        str(sent).strip()
-        for chunk in spacified_doc_chunks
-        for sent in chunk.sents
+        str(sent).strip() for chunk in spacified_doc_chunks for sent in chunk.sents
     ]
     sents: Iterable[str] = it.chain(chunks_sents)
     # Further sentencize wrt line breaks
@@ -131,7 +123,6 @@ def sentencize(
     if sep_tok is not None:
         sents = [l for sent in sents for l in sent.split(sep_tok) if l != ""]
     return sents
-
 
 
 def _chunkify_on_linebreaks(

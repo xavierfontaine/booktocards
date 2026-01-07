@@ -48,9 +48,7 @@ def test_files_are_created_and_reloaded(tmp_path):
     assert kb.__dict__[TableName.KANJIS].shape[0] == 2
     assert "食" in kb.__dict__[TableName.KANJIS][ColumnName.KANJI].to_list()
     assert sorted(
-        kb.__dict__[TableName.KANJIS][
-            ColumnName.ASSOCIATED_TOKS_FROM_SOURCE
-        ].to_list()
+        kb.__dict__[TableName.KANJIS][ColumnName.ASSOCIATED_TOKS_FROM_SOURCE].to_list()
     ) == sorted([["食べる"], ["飲む"]])
     assert kb.__dict__[TableName.SEQS].shape[0] == 1
     # Save, reload and check everything is still here
@@ -70,9 +68,7 @@ def test_error_when_adding_again_a_doc(tmp_path):
     kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
     # Adding again should fail
     with pytest.raises(ValueError):
-        kb.add_doc(
-            doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False
-        )
+        kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
 
 
 def test_remove_doc_works(tmp_path):
@@ -116,7 +112,9 @@ def test_set_to_known_works(tmp_path):
     assert kb.__dict__[TableName.TOKENS][ColumnName.IS_KNOWN].sum() == 2
 
 
-@pytest.mark.parametrize("set_voc_tag", ['is_known', 'is_added_to_anki', 'to_be_studied_from'])
+@pytest.mark.parametrize(
+    "set_voc_tag", ["is_known", "is_added_to_anki", "to_be_studied_from"]
+)
 def test_automatically_set_known_for_new_doc(tmp_path, set_voc_tag):
     # Change path where kb will be saved
     path = tmp_path.resolve()
@@ -201,10 +199,7 @@ def test_set_is_suspended_for_source_works(tmp_path):
     # Add a 2nd doc (the same)
     kb.add_doc(doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False)
     # Make sure that all is false
-    assert (
-        sum(kb.__dict__[TableName.TOKENS][ColumnName.IS_SUSPENDED_FOR_SOURCE])
-        == 0
-    )
+    assert sum(kb.__dict__[TableName.TOKENS][ColumnName.IS_SUSPENDED_FOR_SOURCE]) == 0
     # Check what happens if set to known
     kb.set_item_to_suspended_for_source(
         item_value="食べる",
@@ -212,17 +207,11 @@ def test_set_is_suspended_for_source_works(tmp_path):
         item_colname=ColumnName.TOKEN,
         table_name=TableName.TOKENS,
     )
-    assert (
-        kb.__dict__[TableName.TOKENS][ColumnName.IS_SUSPENDED_FOR_SOURCE].sum()
-        == 1
-    )
+    assert kb.__dict__[TableName.TOKENS][ColumnName.IS_SUSPENDED_FOR_SOURCE].sum() == 1
     # Check this is still here after saving/reloading
     kb.save_kb()
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
-    assert (
-        kb.__dict__[TableName.TOKENS][ColumnName.IS_SUSPENDED_FOR_SOURCE].sum()
-        == 1
-    )
+    assert kb.__dict__[TableName.TOKENS][ColumnName.IS_SUSPENDED_FOR_SOURCE].sum() == 1
 
 
 def test_set_study_from_date_for_token_source(tmp_path):
@@ -240,9 +229,7 @@ def test_set_study_from_date_for_token_source(tmp_path):
         source_name=doc_name,
         date=today,
     )
-    assert kb[TableName.TOKENS][ColumnName.TO_BE_STUDIED_FROM].tolist() == [
-        today
-    ]
+    assert kb[TableName.TOKENS][ColumnName.TO_BE_STUDIED_FROM].tolist() == [today]
 
 
 def test_get_items_works(tmp_path):

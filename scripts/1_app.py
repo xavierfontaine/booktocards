@@ -29,7 +29,8 @@ def make_ag(df: pd.DataFrame) -> AgGridReturn:
     """Make an ag grid from a DataFrame"""
     grid_option_builder = GridOptionsBuilder.from_dataframe(df)
     grid_option_builder.configure_selection(
-        selection_mode="multiple", use_checkbox=True,
+        selection_mode="multiple",
+        use_checkbox=True,
     )
     grid_options = grid_option_builder.build()
     ag_obj = AgGrid(
@@ -147,17 +148,18 @@ n_unique_tokens_in_source_unknown = token_df[
     (token_df[ColumnName.SOURCE_NAME] == doc_name)
     & (token_df[ColumnName.COUNT] >= min_count)
     & (
-        (~token_df[ColumnName.IS_KNOWN]) |
-        (~(token_df[ColumnName.IS_ADDED_TO_ANKI]==True))
+        (~token_df[ColumnName.IS_KNOWN])
+        | (~(token_df[ColumnName.IS_ADDED_TO_ANKI] == True))
     )
 ].shape[0]
 n_unique_kanjis_in_source = kanji_df[
     kanji_df[ColumnName.SOURCE_NAME] == doc_name
 ].shape[0]
 n_unique_kanjis_in_source_unknown = kanji_df[
-    (kanji_df[ColumnName.SOURCE_NAME] == doc_name) & (
-        (~kanji_df[ColumnName.IS_KNOWN]) |
-        (~(kanji_df[ColumnName.IS_ADDED_TO_ANKI]==True))
+    (kanji_df[ColumnName.SOURCE_NAME] == doc_name)
+    & (
+        (~kanji_df[ColumnName.IS_KNOWN])
+        | (~(kanji_df[ColumnName.IS_ADDED_TO_ANKI] == True))
     )
 ].shape[0]
 st.markdown(
@@ -177,15 +179,15 @@ if doc_name in [None, ""]:
 elif doc_name in document_names:
     st.warning(f"{doc_name} already exists in the database.")
 else:
-    uploaded_file = st.file_uploader(
-        label="Choose a file", key="uploaded_file"
-    )
+    uploaded_file = st.file_uploader(label="Choose a file", key="uploaded_file")
     if uploaded_file is not None:
         stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
         uploaded_text = stringio.read()
         kb.add_doc(
-            doc=uploaded_text, doc_name=doc_name,
-            drop_ascii_alphanum_toks=True, sep_tok=sep_tok,
+            doc=uploaded_text,
+            doc_name=doc_name,
+            drop_ascii_alphanum_toks=True,
+            sep_tok=sep_tok,
         )
         kb.save_kb(make_backup=True)
         st.info("Document added. Reload page.")
@@ -298,7 +300,9 @@ if "scheduler" not in st.session_state:
     )
 scheduler: Scheduler = st.session_state["scheduler"]
 # Display number of added items
-n_added_items = len(scheduler.vocab_for_next_round_df) + len(scheduler.kanji_for_next_round_df)
+n_added_items = len(scheduler.vocab_for_next_round_df) + len(
+    scheduler.kanji_for_next_round_df
+)
 st.write(
     f"Added {n_added_items}/{scheduler.n_items_to_add + len(scheduler.due_vocab_df)} items"
 )
@@ -311,50 +315,50 @@ sort_by_count = st.checkbox(label="Sort by count", value=True)
 kb: KnowledgeBase = st.session_state["kb"]
 seq_df = kb[TableName.SEQS]
 st.write(seq_df[seq_df["seq_id"] == 418])
-#token_df=kb.get_items(
+# token_df=kb.get_items(
 #    table_name=TableName.TOKENS,
 #    only_not_added=False,
 #    only_not_known=False,
 #    only_not_suspended=False,
-#    only_no_study_date=False, 
+#    only_no_study_date=False,
 #    #item_value="頷く",
 #    item_colname=ColumnName.TOKEN,
-#    source_name=doc_name, 
+#    source_name=doc_name,
 #    max_study_date=None
-#)
-#st.write(token_df)
+# )
+# st.write(token_df)
 # Display studiable items
 if len(scheduler.vocab_w_uncertain_status_df) == 0:
     st.subheader("Manage vocabulary")
     # Show studiable items
     studiable_tokens_df = scheduler.get_studiable_voc(
-        min_count=min_count, sort_seq_id=sort_by_seq_id, sort_count=sort_by_count,
+        min_count=min_count,
+        sort_seq_id=sort_by_seq_id,
+        sort_count=sort_by_count,
         source_name=doc_name,
     )
     if len(studiable_tokens_df) > n_shown_tokens:
         studiable_tokens_df = studiable_tokens_df[:n_shown_tokens]
     studiable_tokens_ag = make_ag(df=studiable_tokens_df)
     st.session_state["selected_tok_src_cples"] = extract_item_and_source_from_ag(
-        ag_grid_output=studiable_tokens_ag, item_colname=ColumnName.TOKEN,
+        ag_grid_output=studiable_tokens_ag,
+        item_colname=ColumnName.TOKEN,
     )
     # Allow to mark as known or suspended
     if st.button("Mark vocab as known", key="button_voc_known"):
-        for token, source_name in st.session_state["selected_tok_src_cples"] :
+        for token, source_name in st.session_state["selected_tok_src_cples"]:
             scheduler.set_vocab_to_add_to_known(
                 token=token,
             )
     if st.button("Mark vocab as suspended for this source", key="button_voc_suspended"):
-        for token, source_name in st.session_state["selected_tok_src_cples"] :
+        for token, source_name in st.session_state["selected_tok_src_cples"]:
             scheduler.set_vocab_to_add_to_suspended(
                 token=token,
                 source_name=source_name,
             )
     if st.button("Add to study list", key="button_voc_for_study"):
-        for token, source_name in st.session_state["selected_tok_src_cples"] :
-            scheduler.add_vocab_of_interest(
-                token=token,
-                source_name=source_name
-            )
+        for token, source_name in st.session_state["selected_tok_src_cples"]:
+            scheduler.add_vocab_of_interest(token=token, source_name=source_name)
 # If must check kanjis are not known, prompt the user to confirm
 else:
     st.subheader("Manage kanjis for added vocabulary")
@@ -382,33 +386,31 @@ else:
     if st.button("Add to study list", key="button_kanji_for_study"):
         try:
             for kanji, source_name in st.session_state["selected_kanji_src_cples"]:
-                scheduler.add_kanji_for_next_round(
-                    kanji=kanji,
-                    source_name=source_name
-                )
+                scheduler.add_kanji_for_next_round(kanji=kanji, source_name=source_name)
         except EnoughItemsAddedError:
             st.info(
-                "Enoug items added aldready. Emptied the list of candidate"
-                " vocab."
+                "Enoug items added aldready. Emptied the list of candidate" " vocab."
             )
             scheduler.empty_vocab_w_uncertain_status_df()
 
     # When all kanjis have been dealt with, try to add to next round, else to
     # rounds after
     if len(kanjis_sources_to_check_df) == 0:
-        for token, source_name in scheduler.vocab_w_uncertain_status_df[[ColumnName.TOKEN,
-                ColumnName.SOURCE_NAME]].values:
+        for token, source_name in scheduler.vocab_w_uncertain_status_df[
+            [ColumnName.TOKEN, ColumnName.SOURCE_NAME]
+        ].values:
             try:
                 scheduler.add_vocab_for_next_round(token=token, source_name=source_name)
             except KanjiNotKnownError:
-                scheduler.add_vocab_for_rounds_after_next(token=token, source_name=source_name)
+                scheduler.add_vocab_for_rounds_after_next(
+                    token=token, source_name=source_name
+                )
             except EnoughItemsAddedError:
                 st.info(
                     "Enoug items added aldready. Emptied the list of candidate"
                     " vocab."
                 )
                 scheduler.empty_vocab_w_uncertain_status_df()
-
 
 
 # =================
@@ -447,21 +449,20 @@ if "out_filepaths" in st.session_state:
         pass
     else:
         st.download_button(
-                label="Vocabulary cards",
-                data=voc_df.to_csv(index=False),
-                file_name="vocab.csv",
-            )
+            label="Vocabulary cards",
+            data=voc_df.to_csv(index=False),
+            file_name="vocab.csv",
+        )
     try:
         kanji_df = pd.read_csv(kanji_filepath)
     except pd.errors.EmptyDataError:
         pass
     else:
         st.download_button(
-                label="Kanji cards",
-                data=kanji_df.to_csv(index=False),
-                file_name="kanji.csv",
-            )
-
+            label="Kanji cards",
+            data=kanji_df.to_csv(index=False),
+            file_name="kanji.csv",
+        )
 
 
 # ======

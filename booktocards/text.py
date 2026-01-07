@@ -1,6 +1,7 @@
 """
 Utils for dealing with text
 """
+
 import re
 
 

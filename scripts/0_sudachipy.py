@@ -201,9 +201,7 @@ logger.info("Add sentence ids")
 # For each, get associated sentence ids
 lemma_counts_sentids = []
 for lemma, count in lemma_counts:
-    sent_ids = [
-        idx for idx in sents_df.index if lemma in sents_df.loc[idx, "lemmas"]
-    ]
+    sent_ids = [idx for idx in sents_df.index if lemma in sents_df.loc[idx, "lemmas"]]
     sent_ids = sent_ids[: min(len(sent_ids), N_EX_SENTS)]
     lemma_counts_sentids.append((lemma, count, sent_ids))
 # print(lemma_counts_sentids)

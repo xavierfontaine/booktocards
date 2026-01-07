@@ -1,6 +1,7 @@
 """
 Handle tatoeba corpus
 """
+
 from dataclasses import dataclass
 import logging
 import os
@@ -69,9 +70,7 @@ class ManipulateTatoeba:
         try:
             self._load()
         except NoProcessedTatoebaFound:
-            logger.info(
-                "-- No prepared corpus found. Making corpus and index."
-            )
+            logger.info("-- No prepared corpus found. Making corpus and index.")
             self._make_corpus_and_index()
             self._save()
 

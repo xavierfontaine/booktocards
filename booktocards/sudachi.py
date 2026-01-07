@@ -41,6 +41,7 @@ EXCLUDED_POS_SUDACHI = [
 SPLIT_MODE = "C"
 DICT_NAME = "full"
 
+
 # =========
 # Functions
 # =========
@@ -111,9 +112,7 @@ class Tokenizer:
         return dictform_pos_doc
 
     @staticmethod
-    def _check_match_all_criteria(
-        lemma_pos=list[SubPos], pos_conditions=list[SubPos]
-    ):
+    def _check_match_all_criteria(lemma_pos=list[SubPos], pos_conditions=list[SubPos]):
         """pos_conditions can be shorter than lemma_pos (see docstring for
         `tokenize`)"""
         n_pos_conditions = len(pos_conditions)

@@ -1,3 +1,9 @@
+# type: ignore
+"""
+Experiments with sudachipy.
+
+Deprepacated.
+"""
 import logging
 import os
 import pathlib

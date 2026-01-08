@@ -10,12 +10,10 @@ from st_aggrid import AgGrid, AgGridReturn, GridOptionsBuilder
 
 from booktocards import io
 from booktocards.annotations import Kanji, SourceName, Token
-from booktocards.datacl import KanjiCard, VocabCard
 from booktocards.jj_dicts import ManipulateSanseido
 from booktocards.kb import ColumnName, KnowledgeBase, TableName
 from booktocards.scheduler import EnoughItemsAddedError, KanjiNotKnownError, Scheduler
 from booktocards.tatoeba import ManipulateTatoeba
-from booktocards.text import get_unique_kanjis
 
 
 # =========
@@ -41,14 +39,14 @@ def make_ag(df: pd.DataFrame) -> AgGridReturn:
 def extract_item_and_source_from_ag(
     ag_grid_output: AgGridReturn,
     item_colname: Literal[ColumnName.TOKEN, ColumnName.KANJI],
-) -> list[(Union[Token, Kanji], SourceName)]:
+) -> list[tuple[Union[Token, Kanji], SourceName]]:
     """Extract (item value, source name) info from selected table rows"""
     item_source_couples = []
     for select_row in ag_grid_output.selected_rows:
-        couple = [
+        couple = (
             select_row[item_colname],
             select_row[ColumnName.SOURCE_NAME],
-        ]
+        )
         item_source_couples.append(couple)
     return item_source_couples
 
@@ -168,7 +166,7 @@ st.markdown(
 # Add document
 st.subheader("Add a document")
 doc_name = st.text_input(label="Document name (short)")
-sep_tok = st.text_input(label="Special sentence separator?")
+sep_tok: str | None = st.text_input(label="Special sentence separator?")
 if sep_tok == "":
     sep_tok = None
 if doc_name in [None, ""]:
@@ -309,7 +307,6 @@ doc_name = st.selectbox(
 )
 sort_by_seq_id = st.checkbox(label="Sort by id of first sequence", value=True)
 sort_by_count = st.checkbox(label="Sort by count", value=True)
-kb: KnowledgeBase = st.session_state["kb"]
 seq_df = kb[TableName.SEQS]
 st.write(seq_df[seq_df["seq_id"] == 418])
 # token_df=kb.get_items(

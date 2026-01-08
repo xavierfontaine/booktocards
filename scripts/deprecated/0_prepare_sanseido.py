@@ -1,3 +1,7 @@
+# type: ignore
+"""
+Deprecated: now done by ManipulateSanseido on instantiation
+"""
 import logging
 import os
 

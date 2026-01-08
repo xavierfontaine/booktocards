@@ -1,3 +1,4 @@
+# type: ignore
 """
 Extract and clean slack messages for users user_ids_subset.
 
@@ -7,6 +8,8 @@ additionnal sentence separator in 0_app.py
 - Consider using subsampling so that the output file doesn't exceed 1mb.
   Otherwise, ingestion in other pipes might take log. For simplicity, sampling
   is done at the file level.
+
+Deprecated: not up to date with the code anymore.
 """
 
 import json

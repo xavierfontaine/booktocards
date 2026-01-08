@@ -51,5 +51,6 @@ module = [
   "jamdict",
   "sudachipy",
   "tatoebatools",
+  "st_aggrid",
 ]
 ignore_missing_imports = true

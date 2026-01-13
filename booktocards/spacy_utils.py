@@ -21,7 +21,7 @@ def list_jp_pos_tags():
     """List Spacy's POS tags for Japanese"""
     nlp = spacy.load("ja_core_news_sm")
     raw_labels = nlp.get_pipe("morphologizer").labels
-    labels = [l.replace("POS=", "") for l in raw_labels]
+    labels = [label.replace("POS=", "") for label in raw_labels]
     return labels
 
 
@@ -118,10 +118,15 @@ def sentencize(
     sents: Iterable[str] = it.chain(chunks_sents)
     # Further sentencize wrt line breaks
     if split_at_linebreak:
-        sents = [l for sent in sents for l in sent.splitlines() if l != ""]
+        sents = [line for sent in sents for line in sent.splitlines() if line != ""]
     # Further sentencize wrt sep_tok
     if sep_tok is not None:
-        sents = [l for sent in sents for l in sent.split(sep_tok) if l != ""]
+        sents = [
+            sep_sent
+            for sent in sents
+            for sep_sent in sent.split(sep_tok)
+            if sep_sent != ""
+        ]
     return sents
 
 

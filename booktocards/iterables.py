@@ -1,10 +1,9 @@
 from collections import Counter
-from numbers import Number
 from typing import Any, Dict, Iterable, List
 
 import numpy as np
 
-from booktocards.annotations import Count, Token
+from booktocards.annotations import Count
 
 
 def ordered_counts(it: Iterable) -> Dict[Any, Count]:
@@ -36,8 +35,8 @@ def ordered_unique(it: Iterable) -> list:
     return list(dict.fromkeys(it))
 
 
-def argsort(l: List[int | float]) -> List[int]:
+def argsort(lst: List[int | float]) -> List[int]:
     """Return decreasing sorting as positions"""
-    index = list(np.argsort(a=l))
+    index = list(np.argsort(a=lst))
     index.reverse()
     return index

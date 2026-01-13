@@ -1,10 +1,6 @@
 import json
 import logging
 import os
-import pickle
-
-import yaml
-from yaml import CDumper, CLoader
 
 from booktocards import io
 from booktocards.annotations import Definition, DictForm, Reading

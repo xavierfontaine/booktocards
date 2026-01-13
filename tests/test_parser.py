@@ -1,5 +1,3 @@
-import pytest
-
 from booktocards.parser import ParseDocument
 
 

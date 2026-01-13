@@ -268,7 +268,7 @@ for token_info in token_infos:
 # ================
 if REORDER_VOCAB_COUNT:
     logger.info("Roerder by vocab count")
-    sort_index = iterables.argsort(l=[card.count for card in vocab_cards])
+    sort_index = iterables.argsort(lst=[card.count for card in vocab_cards])
     vocab_cards = [vocab_cards[idx] for idx in sort_index]
 
 

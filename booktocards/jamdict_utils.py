@@ -3,7 +3,6 @@ from typing import List
 
 from jamdict import Jamdict, jmdict
 
-from booktocards.annotations import Kanji
 from booktocards.datacl import KanjiInfo, ParsedDictEntry
 from booktocards.text import get_unique_kanjis
 

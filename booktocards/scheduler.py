@@ -5,7 +5,7 @@ Scheduling of studies
 import copy
 import datetime
 import os
-from datetime import date, timedelta
+from datetime import timedelta
 from typing import Literal, Optional
 
 import numpy as np
@@ -731,7 +731,7 @@ class Scheduler:
         """Write cards and make backup"""
         # Make a copy of db before modifying it
         altered_kb = copy.deepcopy(self.kb)
-        ## Check no vocab si in vocab_w_uncertain_status_df
+        # Check no vocab si in vocab_w_uncertain_status_df
         # if len(self.vocab_w_uncertain_status_df) > 0:
         #    raise UncertainVocRemainError(
         #        "Items remain on self.vocab_w_uncertain_status_df:"

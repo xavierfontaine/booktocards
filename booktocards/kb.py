@@ -3,7 +3,7 @@ import datetime
 import logging
 import os
 from enum import Enum
-from typing import Literal, Optional, TypeAlias
+from typing import Literal, Optional
 
 import deepl
 import pandas as pd
@@ -129,21 +129,14 @@ class KnowledgeBase:
             self._load_kb()
         # If impossible, initialize the db and save it
         except NoKBError:
-            logger.info(f"-- No existing kb. Initializing it.")
+            logger.info("-- No existing kb. Initializing it.")
             # Create table
             for df_name in DATA_MODEL.keys():
                 self.__dict__[df_name] = pd.DataFrame(
                     columns=list(DATA_MODEL[df_name].keys())
                 ).astype(DATA_MODEL[df_name])
-            # Cast to bool whatever needs to be
-            for df_name in [TableName.TOKENS, TableName.KANJIS]:
-                for col_name in [
-                    ColumnName.IS_KNOWN,
-                    ColumnName.IS_SUSPENDED_FOR_SOURCE,
-                ]:
-                    self[df_name][col_name] = self[df_name][col_name].astype("bool")
             self.save_kb()
-            logger.info(f"-- Initialized and saved")
+            logger.info("-- Initialized and saved")
 
     def __getitem__(self, arg) -> pd.DataFrame:
         """Get tables through square brakets"""
@@ -317,7 +310,9 @@ class KnowledgeBase:
         table_name: Literal[TableName.TOKENS, TableName.KANJIS, TableName.SEQS],
         item_colname: Optional[ColName] = None,
     ) -> None:
-        """Add item to the table
+        """Add item to the table.
+
+        Ensure consistency of the known status if `item_colname` is specified.
 
         Args:
             entry_to_add (dict[ColName, Values]): row to add to the table
@@ -357,7 +352,7 @@ class KnowledgeBase:
                 table = self.__dict__[table_name]
                 value_exists = table[item_colname] == index_value
                 value_know = table[ColumnName.IS_KNOWN].isin([True])  # Handle NA
-                value_added_to_anki = table[ColumnName.IS_ADDED_TO_ANKI] == True
+                value_added_to_anki = table[ColumnName.IS_ADDED_TO_ANKI]
                 if table_name == TableName.TOKENS:
                     value_to_be_studied = table[ColumnName.TO_BE_STUDIED_FROM].apply(
                         lambda x: False if type(x) is not datetime.date else True
@@ -399,7 +394,7 @@ class KnowledgeBase:
             TableName.KANJIS,
         ],
     ) -> None:
-        """Set item to known
+        """Set item to known in all sources.
 
         Args:
             item_value (str): value of the item in column `item_colname`
@@ -453,7 +448,9 @@ class KnowledgeBase:
             TableName.KANJIS,
         ],
     ) -> None:
-        """Set item as added to Anki and known
+        """Set item as added to Anki.
+
+        Do not set the item as known.
 
         Args:
             item_value (str): value of the item we want to set as added
@@ -600,15 +597,11 @@ class KnowledgeBase:
         if source_name is not None:
             is_items_rows = is_items_rows & (df[ColumnName.SOURCE_NAME] == source_name)
         if only_not_added:
-            is_items_rows = is_items_rows & (df[ColumnName.IS_ADDED_TO_ANKI] == False)
+            is_items_rows = is_items_rows & ~df[ColumnName.IS_ADDED_TO_ANKI]
         if only_not_known:
-            is_items_rows = is_items_rows & (
-                (df[ColumnName.IS_KNOWN] == False) | (df[ColumnName.IS_KNOWN].isna())
-            )
+            is_items_rows = is_items_rows & ~df[ColumnName.IS_KNOWN].fillna(False)
         if only_not_suspended:
-            is_items_rows = is_items_rows & (
-                df[ColumnName.IS_SUSPENDED_FOR_SOURCE] == False
-            )
+            is_items_rows = is_items_rows & ~df[ColumnName.IS_SUSPENDED_FOR_SOURCE]
         if only_no_study_date:
             # No study date on kanji
             if table_name == TableName.KANJIS:
@@ -626,6 +619,9 @@ class KnowledgeBase:
                 lambda x: False if type(x) is not datetime.date else x <= max_study_date
             )
             is_items_rows = is_items_rows & is_before_max_and_not_null
+        assert (
+            is_items_rows.isna().sum() == 0
+        ), "Internal code error: is_items_rows contains NA values."
         return df[is_items_rows].copy()
 
     def remove_doc(self, doc_name: str):

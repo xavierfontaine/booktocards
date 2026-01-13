@@ -4,23 +4,19 @@ Test level: integration (requires db, sanseido, jj to work well)
 
 import os
 from datetime import timedelta
-from unittest.mock import Mock
 
 import pandas as pd
 import pytest
 
 import booktocards.kb
 import booktocards.scheduler
-from booktocards.jj_dicts import ManipulateSanseido
 from booktocards.kb import ColumnName, TableName
 from booktocards.scheduler import (
     EnoughItemsAddedError,
     KanjiNotKnownError,
     KanjiNotKnownOrAddedError,
     NoAddableEntryError,
-    UncertainVocRemainError,
 )
-from booktocards.tatoeba import ManipulateTatoeba
 
 
 def test_add_voc_with_known_kanjis(monkeypatch, tmp_path):
@@ -420,6 +416,7 @@ def test_end_scheduling(monkeypatch, tmp_path):
     # Check the output
     vocab_df = pd.read_csv(filepath_or_buffer=sched_out["vocab"])
     kanji_df = pd.read_csv(filepath_or_buffer=sched_out["kanji"])
+    pd.testing.assert_frame_equal(vocab_df, scheduler.voc_cards)
     pd.testing.assert_frame_equal(kanji_df, scheduler.kanji_cards)
     # Reload the kb
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)

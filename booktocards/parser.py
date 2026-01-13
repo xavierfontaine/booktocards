@@ -98,9 +98,9 @@ class ParseDocument:
         # Remove duplicates in sentence ids (in case of multiple occurrences
         # in a sentence)
         for lemma, counts_sentids in lemma_counts_sentids.items():
-            counts = counts_sentids[0]
-            sent_ids = counts_sentids[1]
-            lemma_counts_sentids[lemma] = (counts, list(set(sent_ids)))
+            count_lemma = counts_sentids[0]
+            sent_ids_lemma = counts_sentids[1]
+            lemma_counts_sentids[lemma] = (count_lemma, list(set(sent_ids_lemma)))
         # Attach to self
         self.tokens = lemma_counts_sentids
         self.sentences = sents_dict

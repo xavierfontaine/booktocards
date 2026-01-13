@@ -116,53 +116,6 @@ seq_df = kb[TableName.SEQS]
 # Manage documents
 # ================
 st.header("Managing documents")
-# Descriptive stats
-st.subheader("Descriptive stats per document")
-min_count = int(
-    st.slider(
-        label="Count below which a token is not accounted for",
-        min_value=1,
-        max_value=100,
-        value=1,
-        step=1,
-    )
-)
-doc_name = st.selectbox(
-    label="Document name", options=document_names, key="doc_for_analysis"
-)
-n_tokens_in_source = token_df.loc[
-    (token_df[ColumnName.SOURCE_NAME] == doc_name)
-    & (token_df[ColumnName.COUNT] >= min_count),
-    ColumnName.COUNT,
-].sum()
-n_unique_tokens_in_source = token_df[
-    (token_df[ColumnName.SOURCE_NAME] == doc_name)
-    & (token_df[ColumnName.COUNT] >= min_count)
-].shape[0]
-n_unique_tokens_in_source_unknown = token_df[
-    (token_df[ColumnName.SOURCE_NAME] == doc_name)
-    & (token_df[ColumnName.COUNT] >= min_count)
-    & (
-        (~token_df[ColumnName.IS_KNOWN])
-        | (~(token_df[ColumnName.IS_ADDED_TO_ANKI] == True))
-    )
-].shape[0]
-n_unique_kanjis_in_source = kanji_df[
-    kanji_df[ColumnName.SOURCE_NAME] == doc_name
-].shape[0]
-n_unique_kanjis_in_source_unknown = kanji_df[
-    (kanji_df[ColumnName.SOURCE_NAME] == doc_name)
-    & (
-        (~kanji_df[ColumnName.IS_KNOWN])
-        | (~(kanji_df[ColumnName.IS_ADDED_TO_ANKI] == True))
-    )
-].shape[0]
-st.markdown(
-    f"###### Descriptive statistics for {doc_name} (latin tokens excluded)\n"
-    f"* Number of tokens (appearing {min_count}+ times): {n_tokens_in_source}.\n"
-    f"* Number of unique tokens (idem): {n_unique_tokens_in_source} (unknown: {n_unique_tokens_in_source_unknown}).\n"
-    f"* Number of unique kanji: {n_unique_kanjis_in_source} (unknown: {n_unique_kanjis_in_source_unknown}).\n"
-)
 # Add document
 st.subheader("Add a document")
 doc_name = st.text_input(label="Document name (short)")
@@ -255,7 +208,7 @@ if TEST_MODE:
     today = date.today() + timedelta(added_days_for_test)
     st.write(
         f"Today is {today}. The study will span untile"
-        f" {today+timedelta(n_days_study)}."
+        f" {today + timedelta(n_days_study)}."
     )
 else:
     today = date.today()

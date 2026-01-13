@@ -5,7 +5,6 @@ Handle tatoeba corpus
 import json
 import logging
 import os
-import pickle
 from dataclasses import dataclass
 from typing import Optional
 
@@ -13,7 +12,7 @@ import tqdm
 from tatoebatools import ParallelCorpus, tatoeba
 
 from booktocards import io
-from booktocards.annotations import Sentence, SentenceId, SubPos, Token
+from booktocards.annotations import Sentence, SentenceId, Token
 from booktocards.sudachi import Tokenizer
 
 # ======

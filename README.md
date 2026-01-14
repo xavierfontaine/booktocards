@@ -11,3 +11,7 @@ Create flashcards from Japanese material for learning kanji and vocabulary.
 ```bash
 streamlit run scripts/1_app.py
 ```
+## Development
+```shell
+pre-commit install
+```

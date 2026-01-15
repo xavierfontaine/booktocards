@@ -344,6 +344,20 @@ class KnowledgeBase:
                     f"Column {col} in data_dict doesn't have the same length"
                     " as other columns."
                 )
+        # If seqs_df, ensure the seq_id does not already exist for the source
+        if table_name == TableName.SEQS:
+            merge_df = pd.merge(
+                self.__dict__[TableName.SEQS],
+                pd.DataFrame(items_to_add),
+                on=[ColumnName.SEQ_ID, ColumnName.SOURCE_NAME],
+                how="inner",
+            )
+            if len(merge_df) > 0:
+                raise ValueError(
+                    f"Trying to add seqs with {ColumnName.SEQ_ID} that already"
+                    " exist for the same source. Conflicting ids are:"
+                    f" {merge_df[ColumnName.SEQ_ID].tolist()}"
+                )
         # For an added row, if the value for the index exist and associated to
         # a known value/added to Anki/has a set due date, then set know to True
         if item_colname is not None:

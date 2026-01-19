@@ -42,7 +42,7 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-addopts = "-rsxX -l"
+addopts = "-rsxX -l --tb=short"
 
 [tool.mypy]
 python_version = "3.12"

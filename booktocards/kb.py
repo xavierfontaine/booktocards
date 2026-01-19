@@ -9,7 +9,7 @@ import deepl
 import pandas as pd
 
 from booktocards import io, jamdict_utils, parser
-from booktocards.annotations import ColName, Values
+from booktocards.annotations import ColName, Count, Sentence, SentenceId, Token, Values
 from booktocards.datacl import (
     KanjiCard,
     TokenInfo,
@@ -96,7 +96,9 @@ DATA_MODEL = {  # table name: {column name: pandas dtype}
 class NoKBError(Exception):
     """Raise when file cannot be found"""
 
-    pass
+
+class NotInJamdictError(Exception):
+    """Raise when token is not in jamdict"""
 
 
 # Path to kb
@@ -227,7 +229,9 @@ class KnowledgeBase:
         # Get token and sentence info
         logger.info(f"-- parsing {doc_name=}")
         parsed_doc = parser.ParseDocument(doc=doc, sep_tok=sep_tok)
-        token_count_sentid = parsed_doc.tokens
+        token_count_sentid: dict[Token, tuple[Count, list[SentenceId]]] = (
+            parsed_doc.tokens
+        )
         sentid_sent_toks = parsed_doc.sentences
         # Drop tokens that are pure alphanum if required
         if drop_ascii_alphanum_toks:
@@ -303,6 +307,132 @@ class KnowledgeBase:
         )
         # Save in kb
         logger.info(f"-- Added {doc_name=} to kb.")
+
+    def add_token_with_sequence(
+        self,
+        token: str,
+        sequence: Optional[str],
+        doc_name: str,
+        sep_tok: Optional[str] = None,
+    ) -> None:
+        """Add a single token with an associated sequence to the kb
+
+        Forcibly set the count to 1 if sequence is provided, 0 otherwise.
+
+        Args:
+            token (str): token
+            sequence (Optional[str]): associated sequence
+            doc_name (str): name to be used as reference in kb. Not a path or
+                filename.
+            sep_tok (Optional[str]): special token for sentence separation
+
+        Raises:
+            NotInJamdictError: if `token` is not found in jamdict
+        """
+        # Check for presence in jamdict
+        dict_entries = jamdict_utils.get_dict_entries(
+            query=token,
+            drop_unfreq_entries=True,
+            drop_unfreq_readings=True,
+            strict_lookup=True,
+        )
+        if len(dict_entries) == 0:
+            raise NotInJamdictError(f"{token=} not found in jamdict.")
+
+        # Determine the sentence id as the next available id for the source
+        sequence_id: int | None = None
+        if sequence is not None:
+            seqs_df = self.__dict__[TableName.SEQS]
+            is_source = seqs_df[ColumnName.SOURCE_NAME] == doc_name
+            if any(is_source):
+                max_seq_id = seqs_df[is_source][ColumnName.SEQ_ID].max()
+                sequence_id = max_seq_id + 1
+            else:
+                sequence_id = 0
+        sequence_id_list = [sequence_id] if sequence_id is not None else []
+
+        # Determine the count for the token
+        if sequence is not None:
+            count = 1
+        else:
+            count = 0
+
+        # Construct the token/count/sentid dict
+        token_count_sentid: dict[Token, tuple[Count, list[SentenceId]]] = {
+            token: (count, sequence_id_list)
+        }
+
+        # Construct the sentid/sent/toks dict
+        sentid_sent_toks: dict[SentenceId, tuple[Sentence, list[Token]]] = {}
+        if sequence is not None:
+            assert sequence_id is not None
+            sentid_sent_toks[sequence_id] = (sequence, [token])
+
+        # Get kanjis
+        unique_kanjis = get_unique_kanjis(token)
+        uniq_kanjis_w_toks = {kanji: [token] for kanji in unique_kanjis}
+
+        # To self - extracted voc
+        self._add_items(
+            entry_to_add={
+                ColumnName.TOKEN: list(token_count_sentid.keys()),
+                ColumnName.COUNT: [v[0] for v in token_count_sentid.values()],
+                ColumnName.SEQS_IDS: [v[1] for v in token_count_sentid.values()],
+                ColumnName.SOURCE_NAME: [
+                    doc_name for i in range(len(token_count_sentid))
+                ],
+                ColumnName.IS_KNOWN: [pd.NA for i in range(len(token_count_sentid))],
+                ColumnName.IS_ADDED_TO_ANKI: [
+                    False for i in range(len(token_count_sentid))
+                ],
+                ColumnName.IS_SUSPENDED_FOR_SOURCE: [
+                    False for i in range(len(token_count_sentid))
+                ],
+                ColumnName.TO_BE_STUDIED_FROM: [
+                    None for i in range(len(token_count_sentid))
+                ],
+            },
+            table_name=TableName.TOKENS,
+            item_colname=ColumnName.TOKEN,
+        )
+        # To self - kanjis
+        self._add_items(
+            entry_to_add={
+                ColumnName.KANJI: list(uniq_kanjis_w_toks.keys()),
+                ColumnName.ASSOCIATED_TOKS_FROM_SOURCE: list(
+                    uniq_kanjis_w_toks.values()
+                ),
+                ColumnName.IS_KNOWN: [pd.NA for i in range(len(uniq_kanjis_w_toks))],
+                ColumnName.IS_ADDED_TO_ANKI: [
+                    False for i in range(len(uniq_kanjis_w_toks))
+                ],
+                ColumnName.IS_SUSPENDED_FOR_SOURCE: [
+                    False for i in range(len(uniq_kanjis_w_toks))
+                ],
+                ColumnName.SOURCE_NAME: [
+                    doc_name for i in range(len(uniq_kanjis_w_toks))
+                ],
+            },
+            table_name=TableName.KANJIS,
+            item_colname=ColumnName.KANJI,
+        )
+        # To self - extracted sequences
+        if len(sentid_sent_toks) > 0:
+            self._add_items(
+                entry_to_add={
+                    ColumnName.SEQ_ID: list(sentid_sent_toks.keys()),
+                    ColumnName.SEQ: [v[0] for v in sentid_sent_toks.values()],
+                    ColumnName.ASSOCIATED_TOKS_FROM_SOURCE: [
+                        v[1] for v in sentid_sent_toks.values()
+                    ],
+                    ColumnName.SOURCE_NAME: [
+                        doc_name for i in range(len(sentid_sent_toks))
+                    ],
+                },
+                table_name=TableName.SEQS,
+            )
+        # Save in kb
+        logger.info(f"-- Added entry {token=} for {doc_name=} to kb.")
 
     def _add_items(
         self,

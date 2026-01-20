@@ -199,7 +199,7 @@ class KnowledgeBase:
             if make_backup:
                 self._save_df(df_name=df_name, is_backup=True)
 
-    def add_doc(
+    def add_doc_from_full_text(
         self,
         doc: str,
         doc_name: str,
@@ -308,7 +308,7 @@ class KnowledgeBase:
         # Save in kb
         logger.info(f"-- Added {doc_name=} to kb.")
 
-    def add_token_with_sequence(
+    def add_token_with_sequence_to_doc(
         self,
         token: str,
         sequence: Optional[str],

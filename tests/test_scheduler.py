@@ -39,7 +39,9 @@ def test_add_voc_with_known_kanjis(monkeypatch, tmp_path):
     # Try to put as "of interest" a voc that's already marked as known
     doc = "食べる飲む歌う。歌う。"
     source_name = "test_doc"
-    kb.add_doc(doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False
+    )
     kb.set_item_to_known(
         item_value="食べる",
         item_colname=ColumnName.TOKEN,
@@ -77,7 +79,9 @@ def test_add_voc_with_unknown_kanjis(monkeypatch, tmp_path):
     # Prepare doc
     doc = "食べる飲む歌う。歌う。感じる。笑う。寝る。"
     source_name = "test_doc"
-    kb.add_doc(doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False
+    )
     # Try to put as "for next round" a word for which kanji isn't clearly known
     with pytest.raises(KanjiNotKnownError):
         scheduler.add_vocab_for_next_round(token="飲む", source_name=source_name)
@@ -135,7 +139,9 @@ def test_add_voc_with_kanji_set_to_add_to_known(monkeypatch, tmp_path):
     # Try to put as "of interest" a voc that's already marked as known
     doc = "食べる飲む歌う。歌う。"
     source_name = "test_doc"
-    kb.add_doc(doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False
+    )
     # Put as "for next round" a word for which kanji was just set to be added
     # as known
     scheduler.set_kanji_to_add_to_known(kanji="飲")
@@ -157,7 +163,9 @@ def test_add_to_much_voc_complains(monkeypatch, tmp_path):
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む歌う。感じる。"
     source_name = "test_doc"
-    kb.add_doc(doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False
+    )
     min_days_btwn_kanji_and_voc = 3
     # Add too much voc to vocab of interest
     scheduler = booktocards.scheduler.Scheduler(
@@ -198,7 +206,9 @@ def test_get_studiable_voc_1_doc(monkeypatch, tmp_path):
     # Prepare doc
     doc = "食べる飲む歌う。歌う。感じる。笑う。寝る。"
     source_name = "test_doc"
-    kb.add_doc(doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False
+    )
     # Get all voc as studiable
     studiable_voc_df = scheduler.get_studiable_voc()
     assert len(studiable_voc_df) == 6
@@ -266,11 +276,15 @@ def test_get_studiable_voc_2_docs(monkeypatch, tmp_path):
     # Add doc 1
     doc1 = "食べる飲む歌う。歌う。感じる。笑う。寝る。"
     source_name1 = "test_doc1"
-    kb.add_doc(doc=doc1, doc_name=source_name1, drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc1, doc_name=source_name1, drop_ascii_alphanum_toks=False
+    )
     # Add doc 2
     doc2 = "眠る？起きる？食べる。"
     source_name2 = "test_doc2"
-    kb.add_doc(doc=doc2, doc_name=source_name2, drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc2, doc_name=source_name2, drop_ascii_alphanum_toks=False
+    )
     # Get all voc as studiable
     studiable_voc_df = scheduler.get_studiable_voc()
     assert len(studiable_voc_df) == 9
@@ -315,7 +329,9 @@ def test_get_studiable_kanji(monkeypatch, tmp_path):
     # Prepare doc
     doc = "食べる飲む歌う。歌う。感じる。笑う。寝る。"
     source_name = "test_doc"
-    kb.add_doc(doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False
+    )
     # Get all kanji as studiable
     studiable_kanji_df = scheduler.get_studiable_kanji()
     assert len(studiable_kanji_df) == 6
@@ -384,7 +400,9 @@ def test_end_scheduling(monkeypatch, tmp_path):
     # Add doc
     doc = "食べる飲む歌う。歌う。感じる。笑う。寝る。"
     source_name = "test_doc"
-    kb.add_doc(doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False
+    )
     # Set 食 as to add to known
     scheduler.set_kanji_to_add_to_known(kanji="食")
     # Add 食べる for next round

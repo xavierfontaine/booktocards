@@ -38,7 +38,9 @@ def test_files_are_created_and_reloaded(tmp_path):
         assert kb.__dict__[table_name].shape[0] == 0
     # Add a doc and check everything has been added
     doc = "食べる飲む"
-    kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False
+    )
     assert kb.__dict__[TableName.TOKENS].shape[0] == 2
     assert "食べる" in kb.__dict__[TableName.TOKENS][ColumnName.TOKEN].to_list()
     assert "飲む" in kb.__dict__[TableName.TOKENS][ColumnName.TOKEN].to_list()
@@ -62,10 +64,14 @@ def test_error_when_adding_again_a_doc(tmp_path):
     # Add doc
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
-    kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False
+    )
     # Adding again should fail
     with pytest.raises(ValueError):
-        kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
+        kb.add_doc_from_full_text(
+            doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False
+        )
 
 
 def test_remove_doc_works(tmp_path):
@@ -74,7 +80,9 @@ def test_remove_doc_works(tmp_path):
     # Add doc
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
-    kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False
+    )
     # Remove the doc
     kb.remove_doc(doc_name="test_doc")
     for table_name in exp_self_tables:
@@ -91,9 +99,13 @@ def test_set_to_known_works(tmp_path):
     # Add doc
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
-    kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False
+    )
     # Add a 2nd doc (the same)
-    kb.add_doc(doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False
+    )
     # Make sure that ColumnName.IS_KNOWN is False
     assert kb.__dict__[TableName.TOKENS][ColumnName.IS_KNOWN].sum() == 0
     # Check what happens if set to known
@@ -119,7 +131,9 @@ def test_automatically_set_known_for_new_doc(tmp_path, set_voc_tag):
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
     doc_name = "test_doc"
-    kb.add_doc(doc=doc, doc_name=doc_name, drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name=doc_name, drop_ascii_alphanum_toks=False
+    )
     # Set to known
     if set_voc_tag == "is_known":
         kb.set_item_to_known(
@@ -148,13 +162,17 @@ def test_automatically_set_known_for_new_doc(tmp_path, set_voc_tag):
     else:
         assert kb.__dict__[TableName.TOKENS][ColumnName.IS_KNOWN].sum() == 0
     # Add a 2nd doc (the same). Check number of known.
-    kb.add_doc(doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False
+    )
     if set_voc_tag == "is_known":
         assert kb.__dict__[TableName.TOKENS][ColumnName.IS_KNOWN].sum() == 2
     else:
         assert kb.__dict__[TableName.TOKENS][ColumnName.IS_KNOWN].sum() == 1
     # Add a 3nd doc (the same). Check number of known.
-    kb.add_doc(doc=doc, doc_name="test_doc3", drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name="test_doc3", drop_ascii_alphanum_toks=False
+    )
     if set_voc_tag == "is_known":
         assert kb.__dict__[TableName.TOKENS][ColumnName.IS_KNOWN].sum() == 3
     else:
@@ -167,9 +185,13 @@ def test_set_added_to_anki_works(tmp_path):
     # Add doc
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
-    kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False
+    )
     # Add a 2nd doc (the same)
-    kb.add_doc(doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False
+    )
     # Make sure that all is false
     assert kb.__dict__[TableName.TOKENS][ColumnName.IS_ADDED_TO_ANKI].sum() == 0
     # Check what happens if set to known and added to Anki
@@ -192,9 +214,13 @@ def test_set_is_suspended_for_source_works(tmp_path):
     # Add doc
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
-    kb.add_doc(doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False
+    )
     # Add a 2nd doc (the same)
-    kb.add_doc(doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name="test_doc2", drop_ascii_alphanum_toks=False
+    )
     # Make sure that all is false
     assert sum(kb.__dict__[TableName.TOKENS][ColumnName.IS_SUSPENDED_FOR_SOURCE]) == 0
     # Check what happens if set to known
@@ -218,7 +244,9 @@ def test_set_study_from_date_for_token_source(tmp_path):
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる"
     doc_name = "test_doc"
-    kb.add_doc(doc=doc, doc_name=doc_name, drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name=doc_name, drop_ascii_alphanum_toks=False
+    )
     # Set date & check
     today = datetime.date.today()
     kb.set_study_from_date_for_token_source(
@@ -236,7 +264,9 @@ def test_get_items_works(tmp_path):
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む"
     doc_name = "test_doc"
-    kb.add_doc(doc=doc, doc_name=doc_name, drop_ascii_alphanum_toks=False)
+    kb.add_doc_from_full_text(
+        doc=doc, doc_name=doc_name, drop_ascii_alphanum_toks=False
+    )
     # Get all tokens
     exp_out = ["食べる", "飲む"]
     items = kb.get_items(
@@ -416,7 +446,7 @@ def test_add_token_with_sequence_error_case_not_in_jamdict(tmp_path) -> None:
     # If the token is not in jamdict, should raise, and no item is added
     doc_name_error_case = "error_case_doc"
     with pytest.raises(NotInJamdictError):
-        kb.add_token_with_sequence(
+        kb.add_token_with_sequence_to_doc(
             "焼肉不足",
             sequence=None,
             doc_name=doc_name_error_case,
@@ -449,7 +479,7 @@ def test_add_token_with_sequence_normal_case(specify_sequence: bool, tmp_path) -
         sequence = None
 
     # Add a normal token
-    kb.add_token_with_sequence(
+    kb.add_token_with_sequence_to_doc(
         "意を決する",
         sequence=sequence,
         doc_name=doc_name_1,
@@ -505,7 +535,7 @@ def test_add_token_with_sequence_normal_case(specify_sequence: bool, tmp_path) -
         )
 
     # Add a second token, and check the sequence numbering. It should increment.
-    kb.add_token_with_sequence(
+    kb.add_token_with_sequence_to_doc(
         "卵",
         sequence=sequence_1,
         doc_name=doc_name_1,
@@ -537,7 +567,7 @@ def test_add_token_with_sequence_normal_case(specify_sequence: bool, tmp_path) -
         assert len(kb.__dict__[TableName.SEQS][ColumnName.SOURCE_NAME].to_list()) == 1
 
     # Add a second document
-    kb.add_token_with_sequence(
+    kb.add_token_with_sequence_to_doc(
         "焼肉",
         sequence=sequence_2,
         doc_name=doc_name_2,

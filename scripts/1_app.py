@@ -131,7 +131,7 @@ else:
     if uploaded_file is not None:
         stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
         uploaded_text = stringio.read()
-        kb.add_doc(
+        kb.add_doc_from_full_text(
             doc=uploaded_text,
             doc_name=doc_name,
             drop_ascii_alphanum_toks=True,

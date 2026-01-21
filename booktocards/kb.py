@@ -101,6 +101,10 @@ class NotInJamdictError(Exception):
     """Raise when token is not in jamdict"""
 
 
+class TokenAlreadyExistsForSourceInKbError(Exception):
+    """Raise when trying to add an item that already exists in the kb"""
+
+
 # Path to kb
 _kb_dirpath = os.path.join(
     io.get_data_path(),
@@ -328,6 +332,7 @@ class KnowledgeBase:
 
         Raises:
             NotInJamdictError: if `token` is not found in jamdict
+
         """
         # Check for presence in jamdict
         dict_entries = jamdict_utils.get_dict_entries(
@@ -338,6 +343,24 @@ class KnowledgeBase:
         )
         if len(dict_entries) == 0:
             raise NotInJamdictError(f"{token=} not found in jamdict.")
+
+        if (
+            self.get_items(
+                table_name=TableName.TOKENS,
+                only_not_added=False,
+                only_not_known=False,
+                only_not_suspended=False,
+                only_no_study_date=False,
+                item_value=token,
+                item_colname=ColumnName.TOKEN,
+                source_name=doc_name,
+            ).shape[0]
+            > 0
+        ):
+            raise TokenAlreadyExistsForSourceInKbError(
+                f"Trying to add {token=} for {doc_name=} to the kb, but already"
+                " exists."
+            )
 
         # Determine the sentence id as the next available id for the source
         sequence_id: int | None = None

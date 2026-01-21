@@ -5,7 +5,13 @@ import pandas as pd
 import pytest
 
 import booktocards.kb
-from booktocards.kb import DATA_MODEL, ColumnName, NotInJamdictError, TableName
+from booktocards.kb import (
+    DATA_MODEL,
+    ColumnName,
+    NotInJamdictError,
+    TableName,
+    TokenAlreadyExistsForSourceInKbError,
+)
 
 # Common to all tests
 exp_self_tables = [TableName.TOKENS, TableName.KANJIS, TableName.SEQS]
@@ -532,6 +538,14 @@ def test_add_token_with_sequence_normal_case(specify_sequence: bool, tmp_path) -
         assert (
             doc_name_1
             not in kb.__dict__[TableName.SEQS][ColumnName.SOURCE_NAME].to_list()
+        )
+
+    # Try to re-add the token
+    with pytest.raises(TokenAlreadyExistsForSourceInKbError):
+        kb.add_token_with_sequence_to_doc(
+            "意を決する",
+            sequence=sequence_1,
+            doc_name=doc_name_1,
         )
 
     # Add a second token, and check the sequence numbering. It should increment.

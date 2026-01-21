@@ -39,6 +39,7 @@ def test_add_voc_with_known_kanjis(monkeypatch, tmp_path):
     # Try to put as "of interest" a voc that's already marked as known
     doc = "食べる飲む歌う。歌う。"
     source_name = "test_doc"
+    kb.create_source_entry(source_name=source_name)
     kb.add_doc_from_full_text(
         doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False
     )
@@ -79,6 +80,7 @@ def test_add_voc_with_unknown_kanjis(monkeypatch, tmp_path):
     # Prepare doc
     doc = "食べる飲む歌う。歌う。感じる。笑う。寝る。"
     source_name = "test_doc"
+    kb.create_source_entry(source_name=source_name)
     kb.add_doc_from_full_text(
         doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False
     )
@@ -139,6 +141,7 @@ def test_add_voc_with_kanji_set_to_add_to_known(monkeypatch, tmp_path):
     # Try to put as "of interest" a voc that's already marked as known
     doc = "食べる飲む歌う。歌う。"
     source_name = "test_doc"
+    kb.create_source_entry(source_name=source_name)
     kb.add_doc_from_full_text(
         doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False
     )
@@ -163,6 +166,7 @@ def test_add_to_much_voc_complains(monkeypatch, tmp_path):
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
     doc = "食べる飲む歌う。感じる。"
     source_name = "test_doc"
+    kb.create_source_entry(source_name=source_name)
     kb.add_doc_from_full_text(
         doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False
     )
@@ -206,6 +210,7 @@ def test_get_studiable_voc_1_doc(monkeypatch, tmp_path):
     # Prepare doc
     doc = "食べる飲む歌う。歌う。感じる。笑う。寝る。"
     source_name = "test_doc"
+    kb.create_source_entry(source_name=source_name)
     kb.add_doc_from_full_text(
         doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False
     )
@@ -276,12 +281,14 @@ def test_get_studiable_voc_2_docs(monkeypatch, tmp_path):
     # Add doc 1
     doc1 = "食べる飲む歌う。歌う。感じる。笑う。寝る。"
     source_name1 = "test_doc1"
+    kb.create_source_entry(source_name=source_name1)
     kb.add_doc_from_full_text(
         doc=doc1, doc_name=source_name1, drop_ascii_alphanum_toks=False
     )
     # Add doc 2
     doc2 = "眠る？起きる？食べる。"
     source_name2 = "test_doc2"
+    kb.create_source_entry(source_name=source_name2)
     kb.add_doc_from_full_text(
         doc=doc2, doc_name=source_name2, drop_ascii_alphanum_toks=False
     )
@@ -329,6 +336,7 @@ def test_get_studiable_kanji(monkeypatch, tmp_path):
     # Prepare doc
     doc = "食べる飲む歌う。歌う。感じる。笑う。寝る。"
     source_name = "test_doc"
+    kb.create_source_entry(source_name=source_name)
     kb.add_doc_from_full_text(
         doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False
     )
@@ -400,6 +408,7 @@ def test_end_scheduling(monkeypatch, tmp_path):
     # Add doc
     doc = "食べる飲む歌う。歌う。感じる。笑う。寝る。"
     source_name = "test_doc"
+    kb.create_source_entry(source_name=source_name)
     kb.add_doc_from_full_text(
         doc=doc, doc_name=source_name, drop_ascii_alphanum_toks=False
     )

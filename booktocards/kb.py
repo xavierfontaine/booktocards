@@ -41,6 +41,7 @@ class TableName(str, Enum):
     TOKENS = "tokens_df"
     KANJIS = "kanjis_df"
     SEQS = "seqs_df"
+    DOCS = "docs_df"
 
 
 class ColumnName(str, Enum):
@@ -57,6 +58,7 @@ class ColumnName(str, Enum):
     IS_SUSPENDED_FOR_SOURCE = "is_suspended_for_source"
     TO_BE_STUDIED_FROM = "to_be_studied_from"
     ASSOCIATED_TOKS_FROM_SOURCE = "associated_toks_from_source"
+    HIDE_IN_ADD_FULL_DOC_APP = "hide_in_add_full_doc_app"
 
 
 DATA_MODEL = {  # table name: {column name: pandas dtype}
@@ -86,6 +88,10 @@ DATA_MODEL = {  # table name: {column name: pandas dtype}
         ColumnName.ASSOCIATED_TOKS_FROM_SOURCE: "object",  # list of str
         ColumnName.SOURCE_NAME: "string",
     },
+    TableName.DOCS: {
+        ColumnName.SOURCE_NAME: "string",
+        ColumnName.HIDE_IN_ADD_FULL_DOC_APP: "bool",
+    },
 }
 
 
@@ -102,6 +108,18 @@ class NotInJamdictError(Exception):
 
 
 class TokenAlreadyExistsForSourceInKbError(Exception):
+    """Raise when trying to add an item that already exists in the kb"""
+
+
+class SourceAlreadyExistsInKbError(Exception):
+    """Raise when trying to add a doc that already exists in the kb"""
+
+
+class NonExistentDocError(Exception):
+    """Raise when trying to access a doc that does not exist in the kb"""
+
+
+class TokenOrKanjiOrSeqAlreadyExistsForSourceInKbError(Exception):
     """Raise when trying to add an item that already exists in the kb"""
 
 
@@ -203,6 +221,33 @@ class KnowledgeBase:
             if make_backup:
                 self._save_df(df_name=df_name, is_backup=True)
 
+    def create_source_entry(
+        self,
+        source_name: str,
+        hide_in_add_full_doc_app: bool = False,
+    ) -> None:
+        """Create a source entry in the docs table
+
+        Args:
+            source_name (str): name to be used as reference in kb. Not a path or
+                filename.
+            hide_in_add_full_doc_app (bool): hide in add full doc app?
+
+        Raises:
+            ValueError: if `source_name` already exists in the kb.
+        """
+        if source_name in self.__dict__[TableName.DOCS][ColumnName.SOURCE_NAME].values:
+            raise SourceAlreadyExistsInKbError(
+                f"Trying to add {source_name=} to the kb docs, but already exists."
+            )
+        self._add_items(
+            entry_to_add={
+                ColumnName.SOURCE_NAME: [source_name],
+                ColumnName.HIDE_IN_ADD_FULL_DOC_APP: [hide_in_add_full_doc_app],
+            },
+            table_name=TableName.DOCS,
+        )
+
     def add_doc_from_full_text(
         self,
         doc: str,
@@ -219,17 +264,30 @@ class KnowledgeBase:
             drop_ascii_alphanum_toks (bool): discard tokens that are only ascii
                 alphanum?
             sep_tok (Optional[str]): special token for sentence separation
+
+        Raises:
+            TokenOrKanjiOrSeqAlreadyExistsForSourceInKbError: if some tokens,
+                kanjis or sequences from `doc_name` already exist in the kb.
         """
+        if doc_name not in self.__dict__[TableName.DOCS][ColumnName.SOURCE_NAME].values:
+            raise NonExistentDocError(
+                f"{doc_name=} not found in kb docs. Create it first using"
+                " `create_source_entry`."
+            )
+
+        # NOTE: current code does not allow pre-existing entries (at the very least,
+        # sequence ids would be wrong). Hence the check below.
         if (
             doc_name in self.__dict__[TableName.TOKENS][ColumnName.SOURCE_NAME].values
             or doc_name
             in self.__dict__[TableName.KANJIS][ColumnName.SOURCE_NAME].values
             or doc_name in self.__dict__[TableName.SEQS][ColumnName.SOURCE_NAME].values
         ):
-            raise ValueError(
-                f"Trying to add {doc_name=} to the kb, but already exists. Use"
-                " self.remove_doc if needed."
+            raise TokenOrKanjiOrSeqAlreadyExistsForSourceInKbError(
+                f"Trying to add entries for {doc_name=} to the kb, but somes already"
+                " exists. Use self.remove_doc if needed."
             )
+
         # Get token and sentence info
         logger.info(f"-- parsing {doc_name=}")
         parsed_doc = parser.ParseDocument(doc=doc, sep_tok=sep_tok)
@@ -331,9 +389,18 @@ class KnowledgeBase:
             sep_tok (Optional[str]): special token for sentence separation
 
         Raises:
+            NonExistentDocError: if `doc_name` does not exist in the kb
             NotInJamdictError: if `token` is not found in jamdict
-
+            TokenAlreadyExistsForSourceInKbError: if `token` already exists
+                for `doc_name` in the kb.
         """
+        # Check that doc exists
+        if doc_name not in self.__dict__[TableName.DOCS][ColumnName.SOURCE_NAME].values:
+            raise NonExistentDocError(
+                f"{doc_name=} not found in kb docs. Create it first using"
+                " `create_source_entry`."
+            )
+
         # Check for presence in jamdict
         dict_entries = jamdict_utils.get_dict_entries(
             query=token,
@@ -344,6 +411,7 @@ class KnowledgeBase:
         if len(dict_entries) == 0:
             raise NotInJamdictError(f"{token=} not found in jamdict.")
 
+        # Check that token does not already exist for source
         if (
             self.get_items(
                 table_name=TableName.TOKENS,
@@ -460,7 +528,9 @@ class KnowledgeBase:
     def _add_items(
         self,
         entry_to_add: dict[ColName, Values],
-        table_name: Literal[TableName.TOKENS, TableName.KANJIS, TableName.SEQS],
+        table_name: Literal[
+            TableName.TOKENS, TableName.KANJIS, TableName.SEQS, TableName.DOCS
+        ],
         item_colname: Optional[ColName] = None,
     ) -> None:
         """Add item to the table.

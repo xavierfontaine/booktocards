@@ -1019,3 +1019,23 @@ class KnowledgeBase:
         # Make into KanjiCard
         kanji_card = kanji_info_to_kanji_card(kanji_info=kanji_info)
         return kanji_card
+
+    def list_doc_names(
+        self, include_hidden_in_add_full_doc_app: bool = True
+    ) -> list[str]:
+        """List document names in the kb
+
+        Args:
+            include_hidden_in_add_full_doc_app (bool): include documents
+                hidden in the 'add full doc' app?
+
+        Returns:
+            list[str]: list of document names
+        """
+        docs_df = self.__dict__[TableName.DOCS]
+        if include_hidden_in_add_full_doc_app:
+            doc_names = docs_df[ColumnName.SOURCE_NAME].tolist()
+        else:
+            is_not_hidden = ~docs_df[ColumnName.HIDE_IN_ADD_FULL_DOC_APP]
+            doc_names = docs_df[is_not_hidden][ColumnName.SOURCE_NAME].tolist()
+        return doc_names

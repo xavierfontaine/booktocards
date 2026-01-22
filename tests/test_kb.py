@@ -60,7 +60,16 @@ def test_files_are_created_and_reloaded(
         kb.__dict__[TableName.DOCS][ColumnName.HIDE_IN_ADD_FULL_DOC_APP].tolist()[0]
         is hide_in_add_full_doc_app
     )
-    # Save, reload and check doc is still there
+    # Check getting doc list
+    doc_list_with_hidden = kb.list_doc_names(include_hidden_in_add_full_doc_app=True)
+    assert doc_list_with_hidden == ["test_doc"]
+    doc_list_without_hidden = kb.list_doc_names(
+        include_hidden_in_add_full_doc_app=False
+    )
+    if hide_in_add_full_doc_app:
+        assert doc_list_without_hidden == []
+    else:
+        assert doc_list_without_hidden == ["test_doc"]
     # Add a doc and check everything has been added
     doc = "食べる飲む"
     kb.add_doc_from_full_text(

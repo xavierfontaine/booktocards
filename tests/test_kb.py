@@ -35,6 +35,7 @@ def test_files_are_created_and_reloaded(
     assert len(os.listdir(path)) == 0
     # Check 4 files and one folder have been created
     kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
+    kb.save_kb()
     assert len(os.listdir(path)) == 5
     # Check that only one of these are a folder
     assert len(next(os.walk(path))[1]) == 1

@@ -135,8 +135,8 @@ _kb_dirpath = os.path.join(
 class KnowledgeBase:
     """Knowledge base for vocabulary and kanji
 
-    At runtime, data are stored in self. At instanciation, they are loaded from
-    pickle. At each operation, they are stored in pickle.
+    At runtime, data are stored in self. At instantiating, they are loaded from
+    pickle.
 
     Attributes
         One pd.DataFrame per key in `_DATA_MODEL`. The columns of dataframe p
@@ -159,8 +159,7 @@ class KnowledgeBase:
                 self.__dict__[df_name] = pd.DataFrame(
                     columns=list(DATA_MODEL[df_name].keys())
                 ).astype(DATA_MODEL[df_name])
-            self.save_kb()
-            logger.info("-- Initialized and saved")
+            logger.info("-- Knowledge base initialized. Save it with `save_kb`.")
 
     def __getitem__(self, arg) -> pd.DataFrame:
         """Get tables through square brakets"""

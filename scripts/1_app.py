@@ -22,7 +22,6 @@ from booktocards.tatoeba import ManipulateTatoeba
 # TODO: modularize
 def make_ag(df: pd.DataFrame) -> AgGridReturn:
     """Make an ag grid from a DataFrame"""
-    __import__("ipdb").set_trace()
     grid_option_builder = GridOptionsBuilder.from_dataframe(df)
     grid_option_builder.configure_selection(
         selection_mode="multiple",
@@ -265,7 +264,7 @@ st.write(
 doc_name = st.selectbox(
     label="Document name", options=selectable_document_names, key="doc_for_scheduling"
 )
-sort_by_seq_id = st.checkbox(label="Sort by id of first sequence", value=True)
+sort_by_seq_id = st.checkbox(label="Sort by id of first sequence", value=False)
 sort_by_count = st.checkbox(label="Sort by count", value=True)
 seq_df = kb[TableName.SEQS]
 st.write(seq_df[seq_df["seq_id"] == 418])

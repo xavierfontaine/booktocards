@@ -9,10 +9,11 @@ import streamlit as st
 from st_aggrid import AgGrid, AgGridReturn, GridOptionsBuilder
 
 from booktocards import io
+from booktocards import scheduler as bk_scheduler
 from booktocards.annotations import Kanji, SourceName, Token
 from booktocards.jj_dicts import ManipulateSanseido
 from booktocards.kb import ColumnName, KnowledgeBase, TableName
-from booktocards.scheduler import EnoughItemsAddedError, KanjiNotKnownError, Scheduler
+from booktocards.scheduler import Scheduler
 from booktocards.tatoeba import ManipulateTatoeba
 
 
@@ -69,7 +70,7 @@ def get_voc_df_w_date_until(max_date: date, session_state):
 # Constants
 # =========
 # Test mode?
-TEST_MODE: bool = True
+TEST_MODE: bool = False
 TEST_KB_DIRNAME = "kb_test"
 # Parameters for card creation
 MAX_SOURCE_EX = 3
@@ -340,7 +341,7 @@ else:
         try:
             for kanji, source_name in st.session_state["selected_kanji_src_cples"]:
                 scheduler.add_kanji_for_next_round(kanji=kanji, source_name=source_name)
-        except EnoughItemsAddedError:
+        except bk_scheduler.EnoughItemsAddedError:
             st.info(
                 "Enoug items added aldready. Emptied the list of candidate" " vocab."
             )
@@ -354,13 +355,13 @@ else:
         ].values:
             try:
                 scheduler.add_vocab_for_next_round(token=token, source_name=source_name)
-            except KanjiNotKnownError:
+            except bk_scheduler.KanjiNotKnownError:
                 scheduler.add_vocab_for_rounds_after_next(
                     token=token, source_name=source_name
                 )
-            except EnoughItemsAddedError:
+            except bk_scheduler.EnoughItemsAddedError:
                 st.info(
-                    "Enoug items added aldready. Emptied the list of candidate"
+                    "Enough items added already. Emptied the list of candidate"
                     " vocab."
                 )
                 scheduler.empty_vocab_w_uncertain_status_df()

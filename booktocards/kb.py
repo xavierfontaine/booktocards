@@ -193,10 +193,10 @@ class KnowledgeBase:
                 self.kb_dirpath,
                 self.now,
             )
-            if not os.path.isdir(dirpath):
-                os.mkdir(dirpath)
         else:
             dirpath = self.kb_dirpath
+        if not os.path.isdir(dirpath):
+            os.mkdir(dirpath)
         filepath = os.path.join(
             dirpath,
             df_name + _OUT_PICKLE_EXTENSION,

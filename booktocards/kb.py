@@ -2,8 +2,8 @@ import copy
 import datetime
 import logging
 import os
-from enum import Enum
-from typing import Literal, Optional
+from dataclasses import dataclass
+from typing import Optional
 
 import deepl
 import pandas as pd
@@ -37,14 +37,16 @@ _OUT_PICKLE_EXTENSION = ".pickle"
 # =========
 # Enums
 # =========
-class TableName(str, Enum):
+@dataclass
+class TableName:
     TOKENS = "tokens_df"
     KANJIS = "kanjis_df"
     SEQS = "seqs_df"
     DOCS = "docs_df"
 
 
-class ColumnName(str, Enum):
+@dataclass
+class ColumnName:
     TOKEN = "token"
     KANJI = "kanji"
     SEQ = "seq"
@@ -527,9 +529,7 @@ class KnowledgeBase:
     def _add_items(
         self,
         entry_to_add: dict[ColName, Values],
-        table_name: Literal[
-            TableName.TOKENS, TableName.KANJIS, TableName.SEQS, TableName.DOCS
-        ],
+        table_name: str,
         item_colname: Optional[ColName] = None,
     ) -> None:
         """Add item to the table.
@@ -538,8 +538,8 @@ class KnowledgeBase:
 
         Args:
             entry_to_add (dict[ColName, Values]): row to add to the table
-            table_name (Literal[TableName.TOKENS, TableName.KANJIS,
-                TableName.SEQS]): name of the table
+            table_name (str): name of the table. One of TableName.TOKENS,
+                TableName.KANJIS, TableName.SEQS, TableName.DOCS.
             item_colname (Optional[ColName]): if specified, will check that if
                 the new entry shares values of `item_colname` with another
                 entry, then it will take the value of ColumnName.IS_KNOWN from
@@ -551,6 +551,8 @@ class KnowledgeBase:
         Returns:
             None
         """
+        if table_name not in DATA_MODEL.keys():
+            raise KeyError(f"{table_name} is not one of {DATA_MODEL.keys()}")
         items_to_add = copy.deepcopy(entry_to_add)
         # Check keys
         if set(items_to_add.keys()) != set(self.__dict__[table_name].columns.to_list()):
@@ -625,10 +627,7 @@ class KnowledgeBase:
         self,
         item_value: str,
         item_colname: ColName,
-        table_name: Literal[
-            TableName.TOKENS,
-            TableName.KANJIS,
-        ],
+        table_name: str,
     ) -> None:
         """Set item to known in all sources.
 
@@ -636,14 +635,19 @@ class KnowledgeBase:
             item_value (str): value of the item in column `item_colname`
             item_colname (ColName): column on which we should look for
                 `item_value`
-            table_name (Literal[
-                    TableName.TOKENS,
-                    TableName.KANJIS,
-                ]): name of the table
+            table_name (str): name of the table. One of TableName.TOKENS,
+                TableName.KANJIS.
 
         Returns:
             None:
         """
+        if table_name not in [
+            TableName.TOKENS,
+            TableName.KANJIS,
+        ]:
+            raise ValueError(
+                f"{table_name=} not in {[TableName.TOKENS, TableName.KANJIS]}"
+            )
         # Find where item_colname is equal to item_value
         is_item = self.__dict__[table_name][item_colname] == item_value
         # Sanity
@@ -658,12 +662,16 @@ class KnowledgeBase:
         self,
         item_value: str,
         item_colname: ColName,
-        table_name: Literal[
-            TableName.TOKENS,
-            TableName.KANJIS,
-        ],
+        table_name: str,
     ) -> None:
         """Inverse of `set_item_to_known`"""
+        if table_name not in [
+            TableName.TOKENS,
+            TableName.KANJIS,
+        ]:
+            raise ValueError(
+                f"{table_name=} not in {[TableName.TOKENS, TableName.KANJIS]}"
+            )
         # Find where item_colname is equal to item_value
         is_item = self.__dict__[table_name][item_colname] == item_value
         # Sanity
@@ -679,10 +687,7 @@ class KnowledgeBase:
         item_value: str,
         source_name: str,
         item_colname: ColName,
-        table_name: Literal[
-            TableName.TOKENS,
-            TableName.KANJIS,
-        ],
+        table_name: str,
     ) -> None:
         """Set item as added to Anki.
 
@@ -693,14 +698,19 @@ class KnowledgeBase:
             source_name (str): source of the item we want to set as added
             item_colname (ColName): column in which we will look for
                 `item_value`
-            table_name (Literal[
-                    TableName.TOKENS,
-                    TableName.KANJIS,
-                ]): name of the table
+            table_name (str): name of the table. One of TableName.TOKENS,
+                TableName.KANJIS.
 
         Returns:
             None
         """
+        if table_name not in [
+            TableName.TOKENS,
+            TableName.KANJIS,
+        ]:
+            raise ValueError(
+                f"{table_name=} not in {[TableName.TOKENS, TableName.KANJIS]}"
+            )
         # Find where item_colname is equal to item_value
         is_item = self.__dict__[table_name][item_colname] == item_value
         is_source = self.__dict__[table_name][ColumnName.SOURCE_NAME] == source_name
@@ -719,10 +729,7 @@ class KnowledgeBase:
         item_value: str,
         source_name: str,
         item_colname: ColName,
-        table_name: Literal[
-            TableName.TOKENS,
-            TableName.KANJIS,
-        ],
+        table_name: str,
     ) -> None:
         """Set item as suspended for a given source
 
@@ -731,14 +738,19 @@ class KnowledgeBase:
             source_name (str): source of the item we want to set as suspended
             item_colname (ColName): column in which we will look for
                 `item_value`
-            table_name (Literal[
-                    TableName.TOKENS,
-                    TableName.KANJIS,
-                ]): name of the table
+            table_name (str): name of the table. One of TableName.TOKENS,
+                TableName.KANJIS.
 
         Returns:
             None
         """
+        if table_name not in [
+            TableName.TOKENS,
+            TableName.KANJIS,
+        ]:
+            raise ValueError(
+                f"{table_name=} not in {[TableName.TOKENS, TableName.KANJIS]}"
+            )
         # Find where item_colname is equal to item_value
         is_item = self.__dict__[table_name][item_colname] == item_value
         is_source = self.__dict__[table_name][ColumnName.SOURCE_NAME] == source_name
@@ -779,10 +791,7 @@ class KnowledgeBase:
 
     def get_items(
         self,
-        table_name: Literal[
-            TableName.TOKENS,
-            TableName.KANJIS,
-        ],
+        table_name: str,
         only_not_added: bool,
         only_not_known: bool,
         only_not_suspended: bool,
@@ -797,10 +806,8 @@ class KnowledgeBase:
         Returns a copy of the relevant rows in the table.
 
         Args:
-            table_name (Literal[
-                    TableName.TOKENS,
-                    TableName.KANJIS,
-                ]): table name
+            table_name (str): table name. One of TableName.TOKENS,
+                TableName.KANJIS.
             only_not_added (bool): retrieve only those items with no True in
                 ColumnName.IS_ADDED_TO_ANKI.
             only_not_known (bool): retrieve only those items with no True in
@@ -820,6 +827,13 @@ class KnowledgeBase:
         Returns:
             pd.DataFrame:
         """
+        if table_name not in [
+            TableName.TOKENS,
+            TableName.KANJIS,
+        ]:
+            raise ValueError(
+                f"{table_name=} not in {[TableName.TOKENS, TableName.KANJIS]}"
+            )
         df = self.__dict__[table_name]
         # Sanity
         if only_no_study_date and max_study_date is not None:

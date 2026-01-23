@@ -1,7 +1,7 @@
 import os
 from datetime import date, timedelta
 from io import StringIO
-from typing import Literal, Union
+from typing import Union
 
 import deepl
 import pandas as pd
@@ -22,6 +22,7 @@ from booktocards.tatoeba import ManipulateTatoeba
 # TODO: modularize
 def make_ag(df: pd.DataFrame) -> AgGridReturn:
     """Make an ag grid from a DataFrame"""
+    __import__("ipdb").set_trace()
     grid_option_builder = GridOptionsBuilder.from_dataframe(df)
     grid_option_builder.configure_selection(
         selection_mode="multiple",
@@ -38,9 +39,13 @@ def make_ag(df: pd.DataFrame) -> AgGridReturn:
 
 def extract_item_and_source_from_ag(
     ag_grid_output: AgGridReturn,
-    item_colname: Literal[ColumnName.TOKEN, ColumnName.KANJI],
+    item_colname: str,
 ) -> list[tuple[Union[Token, Kanji], SourceName]]:
     """Extract (item value, source name) info from selected table rows"""
+    if item_colname not in [ColumnName.TOKEN, ColumnName.KANJI]:
+        raise ValueError(
+            f"item_colname must be one of {ColumnName.TOKEN}, {ColumnName.KANJI}"
+        )
     item_source_couples = []
     for select_row in ag_grid_output.selected_rows:
         couple = (
@@ -65,7 +70,7 @@ def get_voc_df_w_date_until(max_date: date, session_state):
 # Constants
 # =========
 # Test mode?
-TEST_MODE: bool = False
+TEST_MODE: bool = True
 TEST_KB_DIRNAME = "kb_test"
 # Parameters for card creation
 MAX_SOURCE_EX = 3
@@ -106,7 +111,8 @@ for df_name in [
 # Shared variables
 # ================
 kb: KnowledgeBase = st.session_state["kb"]
-document_names = kb[TableName.TOKENS][ColumnName.SOURCE_NAME].unique()
+document_names = kb.list_doc_names(include_hidden_in_add_full_doc_app=True)
+selectable_document_names = kb.list_doc_names(include_hidden_in_add_full_doc_app=False)
 token_df = kb[TableName.TOKENS]
 kanji_df = kb[TableName.KANJIS]
 seq_df = kb[TableName.SEQS]
@@ -131,6 +137,7 @@ else:
     if uploaded_file is not None:
         stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
         uploaded_text = stringio.read()
+        kb.create_source_entry(source_name=doc_name, hide_in_add_full_doc_app=False)
         kb.add_doc_from_full_text(
             doc=uploaded_text,
             doc_name=doc_name,
@@ -142,7 +149,7 @@ else:
 # Remove doc
 st.subheader("Remove a document")
 doc_to_remove = st.selectbox(
-    label="Document name", options=document_names, key="doc_to_remove"
+    label="Document name", options=selectable_document_names, key="doc_to_remove"
 )
 if st.button("Remove document"):
     kb.remove_doc(doc_name=doc_to_remove)
@@ -159,7 +166,7 @@ n_days_study = int(
         label="How many days of study?",
         min_value=1,
         max_value=30,
-        value=7,
+        value=14,
         step=1,
         key="n_days_study",
     )
@@ -169,7 +176,7 @@ n_cards_days = int(
         label="How many new cards a day?",
         min_value=1,
         max_value=30,
-        value=5,
+        value=10,
         step=1,
         key="n_cards_days",
     )
@@ -179,7 +186,7 @@ min_count = int(
         label="What is the lowest count for words to consider?",
         min_value=1,
         max_value=10,
-        value=4,
+        value=3,
         step=1,
         key="min_count",
     )
@@ -232,7 +239,7 @@ n_shown_tokens = int(
         label="Number of tokens to show",
         min_value=1,
         max_value=100,
-        value=20,
+        value=100,
         step=1,
         key="n_shown_tokens",
     )
@@ -256,7 +263,7 @@ st.write(
 )
 # Chose doc name
 doc_name = st.selectbox(
-    label="Document name", options=document_names, key="doc_for_scheduling"
+    label="Document name", options=selectable_document_names, key="doc_for_scheduling"
 )
 sort_by_seq_id = st.checkbox(label="Sort by id of first sequence", value=True)
 sort_by_count = st.checkbox(label="Sort by count", value=True)

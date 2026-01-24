@@ -138,14 +138,19 @@ else:
         stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
         uploaded_text = stringio.read()
         kb.create_source_entry(source_name=doc_name, hide_in_add_full_doc_app=False)
-        kb.add_doc_from_full_text(
-            doc=uploaded_text,
-            doc_name=doc_name,
-            drop_ascii_alphanum_toks=True,
-            sep_tok=sep_tok,
-        )
-        kb.save_kb(make_backup=True)
-        st.info("Document added. Reload page.")
+        try:
+            kb.add_doc_from_full_text(
+                doc=uploaded_text,
+                doc_name=doc_name,
+                drop_ascii_alphanum_toks=True,
+                sep_tok=sep_tok,
+            )
+            kb.save_kb(make_backup=True)
+            st.info("Document added. Reload page.")
+        except Exception as e:
+            # Rollback
+            kb.remove_doc(doc_name=doc_name)
+            raise e
 # Remove doc
 st.subheader("Remove a document")
 doc_to_remove = st.selectbox(

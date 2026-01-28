@@ -1,16 +1,14 @@
 import os
 from datetime import date, timedelta
 from io import StringIO
-from typing import Union
 
 import deepl
 import pandas as pd
 import streamlit as st
-from st_aggrid import AgGrid, AgGridReturn, GridOptionsBuilder
 
 from booktocards import io
 from booktocards import scheduler as bk_scheduler
-from booktocards.annotations import Kanji, SourceName, Token
+from booktocards.aggrid_utils import extract_item_and_source_from_ag, make_ag
 from booktocards.jj_dicts import ManipulateSanseido
 from booktocards.kb import ColumnName, KnowledgeBase, TableName
 from booktocards.scheduler import Scheduler
@@ -20,42 +18,6 @@ from booktocards.tatoeba import ManipulateTatoeba
 # =========
 # Functions
 # =========
-# TODO: modularize
-def make_ag(df: pd.DataFrame) -> AgGridReturn:
-    """Make an ag grid from a DataFrame"""
-    grid_option_builder = GridOptionsBuilder.from_dataframe(df)
-    grid_option_builder.configure_selection(
-        selection_mode="multiple",
-        use_checkbox=True,
-    )
-    grid_options = grid_option_builder.build()
-    ag_obj = AgGrid(
-        df,
-        enable_enterprise_modules=False,
-        gridOptions=grid_options,
-    )
-    return ag_obj
-
-
-def extract_item_and_source_from_ag(
-    ag_grid_output: AgGridReturn,
-    item_colname: str,
-) -> list[tuple[Union[Token, Kanji], SourceName]]:
-    """Extract (item value, source name) info from selected table rows"""
-    if item_colname not in [ColumnName.TOKEN, ColumnName.KANJI]:
-        raise ValueError(
-            f"item_colname must be one of {ColumnName.TOKEN}, {ColumnName.KANJI}"
-        )
-    item_source_couples = []
-    for select_row in ag_grid_output.selected_rows:
-        couple = (
-            select_row[item_colname],
-            select_row[ColumnName.SOURCE_NAME],
-        )
-        item_source_couples.append(couple)
-    return item_source_couples
-
-
 def get_voc_df_w_date_until(max_date: date, session_state):
     token_df: pd.DataFrame = session_state["kb"][TableName.TOKENS]
     out_df = token_df[

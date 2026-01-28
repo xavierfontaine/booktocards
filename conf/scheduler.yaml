@@ -1,0 +1,6 @@
+# See scheduler.py::Scheduler for usage.
+min_count: 3
+n_days_study: 20
+n_cards_days: 10
+min_days_btwn_kanji_and_voc: 22
+

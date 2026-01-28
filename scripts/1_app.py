@@ -77,6 +77,12 @@ MAX_SOURCE_EX = 3
 MAX_TATOEBA_EX = 3
 # Keys of the "secrets.yaml" file
 SECRETS_DEEPL_KEY_KEY = "deepl_api_key"
+# Keys of the scheduler.yaml
+MIN_COUNT_KEY = "min_count"
+SCHEDULER_CONF_FILENAME = "scheduler.yaml"
+N_DAYS_STUDY_KEY = "n_days_study"
+N_CARDS_DAYS_KEY = "n_cards_days"
+MIN_DAYS_BTWN_KANJI_AND_VOC_KEY = "min_days_btwn_kanji_and_voc"
 # Card attribute names
 KANJI_CARD_KANJI_ATTR_NAME = "lemma"
 KANJI_CARD_SOURCE_ATTR_NAME = "source_name_str"
@@ -87,6 +93,7 @@ EX_LINEBREAK_REPL = " // "
 # ==================
 # Init session state
 # ==================
+# Initialize knowledge base
 if "kb" not in st.session_state:
     if TEST_MODE:
         kb_dirpath = os.path.join(
@@ -97,8 +104,16 @@ if "kb" not in st.session_state:
         st.session_state["kb"] = KnowledgeBase(kb_dirpath=kb_dirpath)
     else:
         st.session_state["kb"] = KnowledgeBase()
-if "study_options_are_set" not in st.session_state:
-    st.session_state["study_options_are_set"] = False
+# Retrieve scheduler parameters from conf
+for scheduler_param in [
+    MIN_COUNT_KEY,
+    N_DAYS_STUDY_KEY,
+    N_CARDS_DAYS_KEY,
+    MIN_DAYS_BTWN_KANJI_AND_VOC_KEY,
+]:
+    if scheduler_param not in st.session_state:
+        conf = io.get_conf(SCHEDULER_CONF_FILENAME)
+        st.session_state[scheduler_param] = conf[scheduler_param]
 for df_name in [
     "to_add_tok_df",  # "to_mark_as_known_tok_df", "to_suspend_tok_df",
     "to_add_kanji_df",  # "to_mark_as_known_kanji_df", "to_suspend_kanji_df",
@@ -166,44 +181,13 @@ if st.button("Remove document"):
 # Define study
 # ============
 st.header("Study settings")
-n_days_study = int(
-    st.slider(
-        label="How many days of study?",
-        min_value=1,
-        max_value=30,
-        value=14,
-        step=1,
-        key="n_days_study",
-    )
-)
-n_cards_days = int(
-    st.slider(
-        label="How many new cards a day?",
-        min_value=1,
-        max_value=30,
-        value=10,
-        step=1,
-        key="n_cards_days",
-    )
-)
-min_count = int(
+_ = int(
     st.slider(
         label="What is the lowest count for words to consider?",
         min_value=1,
         max_value=10,
-        value=3,
         step=1,
-        key="min_count",
-    )
-)
-min_days_btwn_kanji_and_voc = int(
-    st.slider(
-        label="What is the smallest interval between added a kanji and a related token?",
-        min_value=1,
-        max_value=30,
-        value=22,
-        step=1,
-        key="min_days_btwn_kanji_and_voc",
+        key=MIN_COUNT_KEY,
     )
 )
 if TEST_MODE:
@@ -220,7 +204,7 @@ if TEST_MODE:
     today = date.today() + timedelta(added_days_for_test)
     st.write(
         f"Today is {today}. The study will span untile"
-        f" {today + timedelta(n_days_study)}."
+        f" {today + timedelta(st.session_state[N_DAYS_STUDY_KEY])}."
     )
 else:
     today = date.today()
@@ -228,9 +212,9 @@ else:
 if st.button("Use these settings for study (unsaved changes will be lost)"):
     st.session_state["scheduler"] = Scheduler(
         kb=kb,
-        n_days_study=st.session_state["n_days_study"],
-        n_cards_days=st.session_state["n_cards_days"],
-        min_days_btwn_kanji_and_voc=st.session_state["min_days_btwn_kanji_and_voc"],
+        n_days_study=st.session_state[N_DAYS_STUDY_KEY],
+        n_cards_days=st.session_state[N_CARDS_DAYS_KEY],
+        min_days_btwn_kanji_and_voc=st.session_state[MIN_DAYS_BTWN_KANJI_AND_VOC_KEY],
         today=today,
     )
 
@@ -254,9 +238,9 @@ n_shown_tokens = int(
 if "scheduler" not in st.session_state:
     st.session_state["scheduler"] = Scheduler(
         kb=kb,
-        n_days_study=st.session_state["n_days_study"],
-        n_cards_days=st.session_state["n_cards_days"],
-        min_days_btwn_kanji_and_voc=st.session_state["min_days_btwn_kanji_and_voc"],
+        n_days_study=st.session_state[N_DAYS_STUDY_KEY],
+        n_cards_days=st.session_state[N_CARDS_DAYS_KEY],
+        min_days_btwn_kanji_and_voc=st.session_state[MIN_DAYS_BTWN_KANJI_AND_VOC_KEY],
     )
 scheduler: Scheduler = st.session_state["scheduler"]
 # Display number of added items
@@ -291,7 +275,7 @@ if len(scheduler.vocab_w_uncertain_status_df) == 0:
     st.subheader("Manage vocabulary")
     # Show studiable items
     studiable_tokens_df = scheduler.get_studiable_voc(
-        min_count=min_count,
+        min_count=st.session_state[MIN_COUNT_KEY],
         sort_seq_id=sort_by_seq_id,
         sort_count=sort_by_count,
         source_name=doc_name,

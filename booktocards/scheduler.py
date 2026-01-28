@@ -367,8 +367,8 @@ class Scheduler:
     def add_vocab_of_interest(self, token: Token, source_name: SourceName):
         """Select vocabulary to be studied in any future round
 
-        If all kanjis are known, ad to
-        self.new_vocab_for_next_round_df_df. Else, add to
+        If all kanjis are known, add to
+        self.new_vocab_for_next_round_df. Else, add to
         self.vocab_w_uncertain_status_df
         """
         # TODO: finish docstr

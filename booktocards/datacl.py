@@ -83,11 +83,6 @@ def token_info_to_voc_cards(
     token_info = copy.deepcopy(token_info)
     # Assert the expected fields of token_info are present
     assert token_info.parsed_dict_entries is not None
-    assert token_info.source_ex_str is not None
-    assert token_info.source_ex_str_transl is not None
-    assert token_info.tatoeba_ex_str is not None
-    assert token_info.tatoeba_ex_str_transl is not None
-    assert token_info.sanseido_dict_entries is not None
     # Create each card
     for entry in token_info.parsed_dict_entries:
         # Assert the expected fields of each parsed_dict_entry are present
@@ -108,7 +103,12 @@ def token_info_to_voc_cards(
         )
         # Add source examples (w translation when available)
         card.examples_str = ""
-        if token_info.source_ex_str not in [None, []]:
+        if (
+            token_info.source_ex_str is not None and token_info.source_ex_str != []
+        ) and (
+            token_info.source_ex_str_transl is not None
+            and token_info.source_ex_str_transl != []
+        ):
             source_ex_w_transl = token_info.source_ex_str
             if ex_linebreak_repl is not None:
                 source_ex_w_transl = [
@@ -126,7 +126,12 @@ def token_info_to_voc_cards(
                     source_ex_w_transl[i] += f" ({transl})"
             card.examples_str += "# " + "\n# ".join(source_ex_w_transl)
         # Add tatoeba examples
-        if token_info.tatoeba_ex_str not in [None, []]:
+        if (
+            token_info.tatoeba_ex_str is not None and token_info.tatoeba_ex_str != []
+        ) and (
+            token_info.tatoeba_ex_str_transl is not None
+            and token_info.tatoeba_ex_str_transl != []
+        ):
             if card.examples_str != "":
                 card.examples_str += "\n"
             tatoeba_ext_str = token_info.tatoeba_ex_str
@@ -144,7 +149,10 @@ def token_info_to_voc_cards(
             ]
             card.examples_str += "# " + "\n# ".join(tatoeba_ex_w_transl)
         # Add jj definition
-        if token_info.sanseido_dict_entries not in [None, []]:
+        if (
+            token_info.sanseido_dict_entries is not None
+            and token_info.sanseido_dict_entries != []
+        ):
             per_reading_def = [
                 f"Reading {i}) {reading}\n[def] " + "[def] ".join(defs)
                 for i, (reading, defs) in enumerate(

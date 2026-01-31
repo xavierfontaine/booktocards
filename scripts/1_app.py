@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from booktocards import io
+from booktocards import kb as bk_kb
 from booktocards import scheduler as bk_scheduler
 from booktocards.aggrid_utils import extract_item_and_source_from_ag, make_ag
 from booktocards.jj_dicts import ManipulateSanseido
@@ -88,8 +89,8 @@ for df_name in [
 # Shared variables
 # ================
 kb: KnowledgeBase = st.session_state["kb"]
-document_names = kb.list_doc_names(include_hidden_in_add_full_doc_app=True)
-selectable_document_names = kb.list_doc_names(include_hidden_in_add_full_doc_app=False)
+all_document_names = kb.list_doc_names(include_hidden_in_add_full_doc_app=True)
+non_hidden_document_names = kb.list_doc_names(include_hidden_in_add_full_doc_app=False)
 token_df = kb[TableName.TOKENS]
 kanji_df = kb[TableName.KANJIS]
 seq_df = kb[TableName.SEQS]
@@ -107,7 +108,7 @@ if sep_tok == "":
     sep_tok = None
 if doc_name in [None, ""]:
     st.warning("Enter a document name before uploading")
-elif doc_name in document_names:
+elif doc_name in all_document_names:
     st.warning(f"{doc_name} already exists in the database.")
 else:
     uploaded_file = st.file_uploader(label="Choose a file", key="uploaded_file")
@@ -131,12 +132,53 @@ else:
 # Remove doc
 st.subheader("Remove a document")
 doc_to_remove = st.selectbox(
-    label="Document name", options=selectable_document_names, key="doc_to_remove"
+    label="Document name", options=non_hidden_document_names, key="doc_to_remove"
 )
 if st.button("Remove document"):
     kb.remove_doc(doc_name=doc_to_remove)
     kb.save_kb(make_backup=True)
     st.info(f"Removed {doc_to_remove}. Reload page.")
+
+
+# ==============================
+# Manage token to add on the fly
+# ==============================
+# TODO: get a special list of sources here
+st.header("Manual Token Addition")
+token = st.text_input(label="Token to add")
+sequence = st.text_input(label="Example sentence (optional)")
+source_name = st.selectbox(
+    label="Source name",
+    options=all_document_names,
+    accept_new_options=True,
+)
+if st.button("Add token to studiable vocabulary"):
+    if token.strip() == "":
+        st.warning("Token cannot be empty.")
+    elif source_name.strip() == "":
+        st.warning("Source name cannot be empty.")
+    else:
+        try:
+            if source_name not in all_document_names:
+                kb.create_source_entry(
+                    source_name=source_name, hide_in_add_full_doc_app=True
+                )
+            kb.add_token_with_sequence_to_doc(
+                token=token,
+                sequence=sequence if sequence.strip() != "" else None,
+                doc_name=source_name,
+                sep_tok=None,
+            )
+            kb.save_kb(make_backup=False)
+            st.success(f'Token "{token}" added to source "{source_name}", kb saved.')
+        except bk_kb.NotInJamdictError:
+            st.error(f'The token "{token}" does not exist in Jamdict.')
+        except bk_kb.TokenAlreadyExistsForSourceInKbError:
+            st.error(
+                f'The token "{token}" already exists for source "{source_name}" in the knowledge base.'
+            )
+        except Exception as e:
+            st.error(f"An error occurred: {str(e)}")
 
 
 # ============
@@ -214,7 +256,7 @@ st.write(
 )
 # Chose doc name
 doc_name = st.selectbox(
-    label="Document name", options=selectable_document_names, key="doc_for_scheduling"
+    label="Document name", options=non_hidden_document_names, key="doc_for_scheduling"
 )
 sort_by_seq_id = st.checkbox(label="Sort by id of first sequence", value=False)
 sort_by_count = st.checkbox(label="Sort by count", value=True)
@@ -236,11 +278,25 @@ st.write(seq_df[seq_df["seq_id"] == 418])
 if len(scheduler.vocab_w_uncertain_status_df) == 0:
     st.subheader("Manage vocabulary")
     # Show studiable items
-    studiable_tokens_df = scheduler.get_studiable_voc(
-        min_count=st.session_state[MIN_COUNT_KEY],
-        sort_seq_id=sort_by_seq_id,
-        sort_count=sort_by_count,
-        source_name=doc_name,
+    studiable_tokens_df = pd.concat(
+        [
+            # Priority 1, all sources
+            scheduler.get_studiable_voc(
+                min_count=0,
+                sort_seq_id=sort_by_seq_id,
+                sort_count=sort_by_count,
+                source_name=None,
+                priority=2,
+            ),
+            # Priority 2, selected doc
+            scheduler.get_studiable_voc(
+                min_count=st.session_state[MIN_COUNT_KEY],
+                sort_seq_id=sort_by_seq_id,
+                sort_count=sort_by_count,
+                source_name=doc_name,
+                priority=1,
+            ),
+        ]
     )
     if len(studiable_tokens_df) > n_shown_tokens:
         studiable_tokens_df = studiable_tokens_df[:n_shown_tokens]

@@ -322,6 +322,51 @@ def test_get_studiable_voc_2_docs(monkeypatch, tmp_path):
     assert len(studiable_voc_df) == 3
 
 
+@pytest.mark.parametrize(
+    "with_sequence",
+    [True, False],
+)
+def test_get_studiable_voc_for_token_added_with_sequence(
+    with_sequence: bool, monkeypatch, tmp_path
+):
+    # Handle temporary folders
+    path = tmp_path.resolve()
+    path_cards = os.path.join(path, "cards")
+    path_kb = os.path.join(path, "kb")
+    os.mkdir(path_cards)
+    os.mkdir(path_kb)
+    monkeypatch.setattr(booktocards.scheduler, "_cards_dirpath", path_cards)
+    # Init kb and scheduler
+    kb = booktocards.kb.KnowledgeBase(kb_dirpath=path)
+    min_days_btwn_kanji_and_voc = 3
+    scheduler = booktocards.scheduler.Scheduler(
+        kb=kb,
+        n_days_study=2,
+        n_cards_days=2,
+        min_days_btwn_kanji_and_voc=min_days_btwn_kanji_and_voc,
+    )
+    # Prepare token
+    token = "食べる"
+    if with_sequence:
+        sequence = "食べる飲む歌う。"
+    else:
+        sequence = None
+    source_name = "test_doc"
+    kb.create_source_entry(source_name=source_name)
+    kb.add_token_with_sequence_to_doc(
+        token=token,
+        sequence=sequence,
+        doc_name=source_name,
+    )
+    # Retrieve studiable voc with priority 2 (i.e. the token)
+    studiable_voc_df = scheduler.get_studiable_voc(priority=2, min_count=0)
+    assert len(studiable_voc_df) == 1
+    assert studiable_voc_df[ColumnName.TOKEN].iloc[0] == token
+    # Retrieve studiable voc with priority 1 (i.e. none)
+    studiable_voc_df = scheduler.get_studiable_voc(priority=1, min_count=0)
+    assert len(studiable_voc_df) == 0
+
+
 def test_get_studiable_kanji(monkeypatch, tmp_path):
     # Handle temporary folders
     path = tmp_path.resolve()

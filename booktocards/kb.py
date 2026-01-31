@@ -61,6 +61,7 @@ class ColumnName:
     TO_BE_STUDIED_FROM = "to_be_studied_from"
     ASSOCIATED_TOKS_FROM_SOURCE = "associated_toks_from_source"
     HIDE_IN_ADD_FULL_DOC_APP = "hide_in_add_full_doc_app"
+    PRIORITY = "priority"  # With 0 (low), 1 (normal), 2 (high)
 
 
 DATA_MODEL = {  # table name: {column name: pandas dtype}
@@ -75,6 +76,7 @@ DATA_MODEL = {  # table name: {column name: pandas dtype}
         ColumnName.IS_ADDED_TO_ANKI: "bool",
         ColumnName.IS_SUSPENDED_FOR_SOURCE: "bool",
         ColumnName.TO_BE_STUDIED_FROM: "object",
+        ColumnName.PRIORITY: "int8",
     },
     TableName.KANJIS: {
         ColumnName.KANJI: "string",
@@ -256,7 +258,9 @@ class KnowledgeBase:
         drop_ascii_alphanum_toks: bool,
         sep_tok: Optional[str] = None,
     ) -> None:
-        """Parse a document and add it's voc and sentences to kb
+        """Parse a document and add it's voc and sentences to kb.
+
+        Set priority to 1 (normal) for all tokens.
 
         Args:
             doc (str): doc
@@ -329,6 +333,7 @@ class KnowledgeBase:
                 ColumnName.TO_BE_STUDIED_FROM: [
                     None for i in range(len(token_count_sentid))
                 ],
+                ColumnName.PRIORITY: [1 for i in range(len(token_count_sentid))],
             },
             table_name=TableName.TOKENS,
             item_colname=ColumnName.TOKEN,
@@ -381,6 +386,8 @@ class KnowledgeBase:
         """Add a single token with an associated sequence to the kb
 
         Forcibly set the count to 1 if sequence is provided, 0 otherwise.
+
+        Forcibly set the priority to 2 (high).
 
         Args:
             token (str): token
@@ -483,6 +490,7 @@ class KnowledgeBase:
                 ColumnName.TO_BE_STUDIED_FROM: [
                     None for i in range(len(token_count_sentid))
                 ],
+                ColumnName.PRIORITY: [2 for i in range(len(token_count_sentid))],
             },
             table_name=TableName.TOKENS,
             item_colname=ColumnName.TOKEN,

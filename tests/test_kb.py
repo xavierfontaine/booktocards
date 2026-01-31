@@ -76,6 +76,7 @@ def test_files_are_created_and_reloaded(
         doc=doc, doc_name="test_doc", drop_ascii_alphanum_toks=False
     )
     assert kb.__dict__[TableName.TOKENS].shape[0] == 2
+    assert all(kb.__dict__[TableName.TOKENS][ColumnName.PRIORITY] == 1)
     assert "食べる" in kb.__dict__[TableName.TOKENS][ColumnName.TOKEN].to_list()
     assert "飲む" in kb.__dict__[TableName.TOKENS][ColumnName.TOKEN].to_list()
     assert kb.__dict__[TableName.KANJIS].shape[0] == 2
@@ -555,6 +556,7 @@ def test_add_token_with_sequence_normal_case(specify_sequence: bool, tmp_path) -
         ColumnName.IS_ADDED_TO_ANKI: False,
         ColumnName.IS_SUSPENDED_FOR_SOURCE: False,
         ColumnName.TO_BE_STUDIED_FROM: None,
+        ColumnName.PRIORITY: 2,
     }
     actual_token_entry = kb.__dict__[TableName.TOKENS].iloc[token_idx].to_dict()
     assert expected_token_entry == actual_token_entry
@@ -613,6 +615,7 @@ def test_add_token_with_sequence_normal_case(specify_sequence: bool, tmp_path) -
         ColumnName.IS_ADDED_TO_ANKI: False,
         ColumnName.IS_SUSPENDED_FOR_SOURCE: False,
         ColumnName.TO_BE_STUDIED_FROM: None,
+        ColumnName.PRIORITY: 2,
     }
     actual_token_entry = kb.__dict__[TableName.TOKENS].iloc[token_idx].to_dict()
     assert expected_token_entry == actual_token_entry
@@ -648,6 +651,7 @@ def test_add_token_with_sequence_normal_case(specify_sequence: bool, tmp_path) -
         ColumnName.IS_ADDED_TO_ANKI: False,
         ColumnName.IS_SUSPENDED_FOR_SOURCE: False,
         ColumnName.TO_BE_STUDIED_FROM: None,
+        ColumnName.PRIORITY: 2,
     }
     actual_token_entry = kb.__dict__[TableName.TOKENS].iloc[token_idx].to_dict()
     assert expected_token_entry == actual_token_entry

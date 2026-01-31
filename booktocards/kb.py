@@ -808,6 +808,7 @@ class KnowledgeBase:
         item_colname: Optional[ColName] = None,
         source_name: Optional[str] = None,
         max_study_date: Optional[datetime.date] = None,
+        priority: Optional[int] = None,
     ) -> pd.DataFrame:
         """Get items corresponding to input conditions.
 
@@ -831,9 +832,11 @@ class KnowledgeBase:
             source_name (Optional[str]): name of the source
             max_study_date (Optional[datetime.date]): retrieve items with no
                 study date of study date <= max_study_date.
+            priority (Optional[int]): if table_name is TableName.TOKENS, filter
+                by priority.
 
         Returns:
-            pd.DataFrame:
+            pd.DataFrame
         """
         if table_name not in [
             TableName.TOKENS,
@@ -871,12 +874,17 @@ class KnowledgeBase:
         if max_study_date is not None:
             if table_name == TableName.KANJIS:
                 raise ValueError(
-                    "`last_study_day` was provided but is not relevant to" " kanjis"
+                    "`last_study_day` was provided but is not relevant to kanjis"
                 )
             is_before_max_and_not_null = df.loc[:, ColumnName.TO_BE_STUDIED_FROM].apply(
                 lambda x: False if type(x) is not datetime.date else x <= max_study_date
             )
             is_items_rows = is_items_rows & is_before_max_and_not_null
+        if priority is not None:
+            if table_name != TableName.TOKENS:
+                raise ValueError("`priority` filter is only relevant to tokens table.")
+            is_items_rows = is_items_rows & (df[ColumnName.PRIORITY] == priority)
+        # Sanity
         assert (
             is_items_rows.isna().sum() == 0
         ), "Internal code error: is_items_rows contains NA values."

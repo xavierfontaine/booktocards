@@ -259,6 +259,12 @@ def test_get_studiable_voc_1_doc(monkeypatch, tmp_path):
     scheduler.set_vocab_to_add_to_suspended(token="笑う", source_name=source_name)
     studiable_voc_df = scheduler.get_studiable_voc()
     assert len(studiable_voc_df) == 1
+    # Get studiable voc with priority 1 (1 voc)
+    studiable_voc_df = scheduler.get_studiable_voc(priority=1)
+    assert len(studiable_voc_df) == 1
+    # Get studiable voc with priority 2 (0 voc)
+    studiable_voc_df = scheduler.get_studiable_voc(priority=2)
+    assert len(studiable_voc_df) == 0
 
 
 def test_get_studiable_voc_2_docs(monkeypatch, tmp_path):

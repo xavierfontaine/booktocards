@@ -483,6 +483,36 @@ def test_get_items_works(tmp_path):
         max_study_date=yesterday,
     )
     assert items.shape[0] == 0
+    # Get items with priority 1 (== all items)
+    exp_out = ["食べる", "飲む"]
+    items = kb.get_items(
+        table_name=TableName.TOKENS,
+        only_not_added=False,
+        only_not_known=False,
+        only_not_suspended=False,
+        only_no_study_date=False,
+        item_value=None,
+        source_name=None,
+        item_colname=None,
+        max_study_date=None,
+        priority=1,
+    )
+    obs_out = items[ColumnName.TOKEN].tolist()
+    assert sorted(exp_out) == sorted(obs_out)
+    # Get items with priority 2 (== no items)
+    items = kb.get_items(
+        table_name=TableName.TOKENS,
+        only_not_added=False,
+        only_not_known=False,
+        only_not_suspended=False,
+        only_no_study_date=False,
+        item_value=None,
+        source_name=None,
+        item_colname=None,
+        max_study_date=None,
+        priority=2,
+    )
+    assert items.shape[0] == 0
 
 
 def test_add_token_with_sequence_error_case_not_in_jamdict(tmp_path) -> None:
@@ -674,3 +704,35 @@ def test_add_token_with_sequence_normal_case(specify_sequence: bool, tmp_path) -
         assert expected_seq_entry == actual_seq_entry
     else:
         assert len(kb.__dict__[TableName.SEQS][ColumnName.SOURCE_NAME].to_list()) == 2
+
+    # Get items with priority 2 (== all items)
+    exp_out = ["意を決する", "卵", "焼肉"]
+    items = kb.get_items(
+        table_name=TableName.TOKENS,
+        only_not_added=False,
+        only_not_known=False,
+        only_not_suspended=False,
+        only_no_study_date=False,
+        item_value=None,
+        source_name=None,
+        item_colname=None,
+        max_study_date=None,
+        priority=2,
+    )
+    obs_out = items[ColumnName.TOKEN].tolist()
+    assert sorted(exp_out) == sorted(obs_out)
+
+    # Get items with priority 1 (== no items)
+    items = kb.get_items(
+        table_name=TableName.TOKENS,
+        only_not_added=False,
+        only_not_known=False,
+        only_not_suspended=False,
+        only_no_study_date=False,
+        item_value=None,
+        source_name=None,
+        item_colname=None,
+        max_study_date=None,
+        priority=1,
+    )
+    assert items.shape[0] == 0

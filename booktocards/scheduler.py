@@ -213,6 +213,7 @@ class Scheduler:
         sort_seq_id: bool = False,
         sort_count: bool = False,
         source_name: Optional[SourceName] = None,
+        priority: Optional[int] = None,
     ) -> pd.DataFrame:
         """Return voc not marked in either the kb and the scheduler
 
@@ -229,6 +230,7 @@ class Scheduler:
             only_not_suspended=True,
             only_no_study_date=True,
             source_name=source_name,
+            priority=priority,
         )
         # Remove those below a certain count
         token_not_marked_in_kb_df = token_not_marked_in_kb_df[

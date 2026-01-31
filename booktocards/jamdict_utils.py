@@ -6,8 +6,6 @@ from jamdict import Jamdict, jmdict
 from booktocards.datacl import KanjiInfo, ParsedDictEntry
 from booktocards.text import get_unique_kanjis
 
-jam = Jamdict(memory_mode=True)
-
 
 def get_definition(lemma: str, strict_lookup: bool = False) -> str:
     """Get definitions with kana and kanjis
@@ -20,6 +18,7 @@ def get_definition(lemma: str, strict_lookup: bool = False) -> str:
         str
     """
     # Get jmdic entries
+    jam = Jamdict(memory_mode=True)
     jmd_entries: jmdict.JMDEntry = jam.lookup(
         query=lemma,
         strict_lookup=strict_lookup,
@@ -85,6 +84,7 @@ def get_dict_entries(
     Returns:
         List[jmdict.JMDEntry]
     """
+    jam = Jamdict(memory_mode=True)
     entries = jam.lookup(query=query, strict_lookup=strict_lookup).entries
     if drop_unfreq_entries:
         entries = drop_unfrequent_entries(entries=entries)
@@ -133,6 +133,7 @@ def get_kanji_info(kanji: str) -> KanjiInfo:
     Returns:
         KanjiInfo
     """
+    jam = Jamdict(memory_mode=True)
     # Sanity checks
     if len(kanji) != 1:
         raise ValueError(f"`kanji` should be of length 1, but is {kanji=}")

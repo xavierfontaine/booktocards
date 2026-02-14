@@ -471,6 +471,16 @@ class KnowledgeBase:
         unique_kanjis = get_unique_kanjis(token)
         uniq_kanjis_w_toks = {kanji: [token] for kanji in unique_kanjis}
 
+        # Remove unique kanjis that are already in the kb for the source
+        uniq_kanjis_w_toks = {
+            kanji: toks
+            for kanji, toks in uniq_kanjis_w_toks.items()
+            if not any(
+                (self.__dict__[TableName.KANJIS][ColumnName.KANJI] == kanji)
+                & (self.__dict__[TableName.KANJIS][ColumnName.SOURCE_NAME] == doc_name)
+            )
+        }
+
         # To self - extracted voc
         self._add_items(
             entry_to_add={

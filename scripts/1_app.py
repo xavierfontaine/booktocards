@@ -281,7 +281,7 @@ st.write(seq_df[seq_df["seq_id"] == 418])
 if len(scheduler.vocab_w_uncertain_status_df) == 0:
     st.subheader("Manage vocabulary")
     # Show studiable items
-    studiable_tokens_df = pd.concat(
+    studiable_tokens_df: pd.DataFrame = pd.concat(
         [
             # Priority 1, all sources
             scheduler.get_studiable_voc(
@@ -301,6 +301,8 @@ if len(scheduler.vocab_w_uncertain_status_df) == 0:
             ),
         ]
     )
+    # Keep only the 1st occurrence of each token
+    studiable_tokens_df = studiable_tokens_df.drop_duplicates(subset=ColumnName.TOKEN)
     if len(studiable_tokens_df) > n_shown_tokens:
         studiable_tokens_df = studiable_tokens_df[:n_shown_tokens]
     studiable_tokens_ag = make_ag(df=studiable_tokens_df)

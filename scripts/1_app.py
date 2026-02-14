@@ -147,35 +147,38 @@ if st.button("Remove document"):
 st.header("Manual Token Addition")
 token = st.text_input(label="Token to add")
 sequence = st.text_input(label="Example sentence (optional)")
-source_name = st.selectbox(
+source_name_otf = st.selectbox(
     label="Source name",
     options=all_document_names,
     accept_new_options=True,
+    key="source_name_otf",
 )
 if st.button("Add token to studiable vocabulary"):
     if token.strip() == "":
         st.warning("Token cannot be empty.")
-    elif source_name.strip() == "":
+    elif source_name_otf.strip() == "":
         st.warning("Source name cannot be empty.")
     else:
         try:
-            if source_name not in all_document_names:
+            if source_name_otf not in all_document_names:
                 kb.create_source_entry(
-                    source_name=source_name, hide_in_add_full_doc_app=True
+                    source_name=source_name_otf, hide_in_add_full_doc_app=True
                 )
             kb.add_token_with_sequence_to_doc(
                 token=token,
                 sequence=sequence if sequence.strip() != "" else None,
-                doc_name=source_name,
+                doc_name=source_name_otf,
                 sep_tok=None,
             )
             kb.save_kb(make_backup=False)
-            st.success(f'Token "{token}" added to source "{source_name}", kb saved.')
+            st.success(
+                f'Token "{token}" added to source "{source_name_otf}", kb saved.'
+            )
         except bk_kb.NotInJamdictError:
             st.error(f'The token "{token}" does not exist in Jamdict.')
         except bk_kb.TokenAlreadyExistsForSourceInKbError:
             st.error(
-                f'The token "{token}" already exists for source "{source_name}" in the knowledge base.'
+                f'The token "{token}" already exists for source "{source_name_otf}" in the knowledge base.'
             )
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")

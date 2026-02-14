@@ -337,6 +337,7 @@ else:
         only_not_sched_to_added=True,
         only_not_sched_to_known=True,
         only_not_sched_to_suspended=True,
+        drop_duplicates=True,
     )
     kanjis_sources_to_check_ag = make_ag(df=kanjis_sources_to_check_df)
     st.session_state["selected_kanji_src_cples"] = extract_item_and_source_from_ag(

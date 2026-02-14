@@ -607,6 +607,7 @@ class Scheduler:
         only_not_sched_to_added: bool,
         only_not_sched_to_known: bool,
         only_not_sched_to_suspended: bool,
+        drop_duplicates: bool = False,
     ) -> pd.DataFrame:
         """Extract [kanji, source] couples from all tokens"""
         kanjis_sources_df = pd.DataFrame(
@@ -652,6 +653,10 @@ class Scheduler:
                     [token for token, source_name in self.kanji_set_to_add_to_suspended]
                 )
             ]
+        if drop_duplicates is True:
+            kanjis_sources_df = kanjis_sources_df.drop_duplicates(
+                subset=[ColumnName.KANJI]
+            )
         return kanjis_sources_df
 
     def _make_voc_cards_from_query(

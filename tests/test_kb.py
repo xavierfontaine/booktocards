@@ -736,3 +736,30 @@ def test_add_token_with_sequence_normal_case(specify_sequence: bool, tmp_path) -
         priority=1,
     )
     assert items.shape[0] == 0
+
+    # Add another token with the same kanji. Check that the kanji is not duplicated in
+    # the kanji table, and that the associated_toks_from_source is updated.
+    kb.add_token_with_sequence_to_doc(
+        "肉",
+        sequence=sequence_2,
+        doc_name=doc_name_2,
+    )
+    # Check that 肉 is in the token table
+    assert "肉" in kb.__dict__[TableName.TOKENS][ColumnName.TOKEN].to_list()
+    # Check that the kanji table has not been duplicated. In the present class behavior,
+    # the ASSOCIATED_TOKS_FROM_SOURCE is not updated when adding a token with sequence
+    # that has an already known kanji.
+    kanji_entries = kb.__dict__[TableName.KANJIS][
+        kb.__dict__[TableName.KANJIS][ColumnName.KANJI] == "肉"
+    ]
+    assert kanji_entries.shape[0] == 1
+    kanji_entry = kanji_entries.iloc[0].to_dict()
+    expected_kanji_entry = {
+        ColumnName.KANJI: "肉",
+        ColumnName.ASSOCIATED_TOKS_FROM_SOURCE: ["焼肉"],
+        ColumnName.IS_KNOWN: None,
+        ColumnName.IS_ADDED_TO_ANKI: False,
+        ColumnName.IS_SUSPENDED_FOR_SOURCE: False,
+        ColumnName.SOURCE_NAME: doc_name_2,
+    }
+    assert expected_kanji_entry == kanji_entry

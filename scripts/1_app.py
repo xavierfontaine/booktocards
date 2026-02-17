@@ -147,35 +147,38 @@ if st.button("Remove document"):
 st.header("Manual Token Addition")
 token = st.text_input(label="Token to add")
 sequence = st.text_input(label="Example sentence (optional)")
-source_name = st.selectbox(
+source_name_otf = st.selectbox(
     label="Source name",
     options=all_document_names,
     accept_new_options=True,
+    key="source_name_otf",
 )
 if st.button("Add token to studiable vocabulary"):
     if token.strip() == "":
         st.warning("Token cannot be empty.")
-    elif source_name.strip() == "":
+    elif source_name_otf.strip() == "":
         st.warning("Source name cannot be empty.")
     else:
         try:
-            if source_name not in all_document_names:
+            if source_name_otf not in all_document_names:
                 kb.create_source_entry(
-                    source_name=source_name, hide_in_add_full_doc_app=True
+                    source_name=source_name_otf, hide_in_add_full_doc_app=True
                 )
             kb.add_token_with_sequence_to_doc(
                 token=token,
                 sequence=sequence if sequence.strip() != "" else None,
-                doc_name=source_name,
+                doc_name=source_name_otf,
                 sep_tok=None,
             )
             kb.save_kb(make_backup=False)
-            st.success(f'Token "{token}" added to source "{source_name}", kb saved.')
+            st.success(
+                f'Token "{token}" added to source "{source_name_otf}", kb saved.'
+            )
         except bk_kb.NotInJamdictError:
             st.error(f'The token "{token}" does not exist in Jamdict.')
         except bk_kb.TokenAlreadyExistsForSourceInKbError:
             st.error(
-                f'The token "{token}" already exists for source "{source_name}" in the knowledge base.'
+                f'The token "{token}" already exists for source "{source_name_otf}" in the knowledge base.'
             )
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")
@@ -278,7 +281,7 @@ st.write(seq_df[seq_df["seq_id"] == 418])
 if len(scheduler.vocab_w_uncertain_status_df) == 0:
     st.subheader("Manage vocabulary")
     # Show studiable items
-    studiable_tokens_df = pd.concat(
+    studiable_tokens_df: pd.DataFrame = pd.concat(
         [
             # Priority 1, all sources
             scheduler.get_studiable_voc(
@@ -298,6 +301,8 @@ if len(scheduler.vocab_w_uncertain_status_df) == 0:
             ),
         ]
     )
+    # Keep only the 1st occurrence of each token
+    studiable_tokens_df = studiable_tokens_df.drop_duplicates(subset=ColumnName.TOKEN)
     if len(studiable_tokens_df) > n_shown_tokens:
         studiable_tokens_df = studiable_tokens_df[:n_shown_tokens]
     studiable_tokens_ag = make_ag(df=studiable_tokens_df)
@@ -332,6 +337,7 @@ else:
         only_not_sched_to_added=True,
         only_not_sched_to_known=True,
         only_not_sched_to_suspended=True,
+        drop_duplicates=True,
     )
     kanjis_sources_to_check_ag = make_ag(df=kanjis_sources_to_check_df)
     st.session_state["selected_kanji_src_cples"] = extract_item_and_source_from_ag(

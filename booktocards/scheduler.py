@@ -139,10 +139,9 @@ class Scheduler:
             len(self.due_vocab_df), self.n_cards_days * self.n_days_study
         )
         for i in range(max_due_vocab_to_add):
-            idx = self.due_vocab_df.index[i]
             self.add_vocab_for_next_round(
-                token=self.due_vocab_df.loc[idx, ColumnName.TOKEN],
-                source_name=self.due_vocab_df.loc[idx, ColumnName.SOURCE_NAME],
+                token=self.due_vocab_df.iloc[i][ColumnName.TOKEN],
+                source_name=self.due_vocab_df.iloc[i][ColumnName.SOURCE_NAME],
             )
         # Calculate number of vocab to add
         self.n_items_to_add = (self.n_days_study * self.n_cards_days) - len(
@@ -397,10 +396,10 @@ class Scheduler:
                 " date."
             )
         # For each row:
-        for idx in token_df.index:
+        for i in range(len(token_df)):
             # Get kanjis that are not known or added
             kanji_not_known_added_schedtoknown = self.get_kanjis_sources_from_token_df(
-                token_df=token_df.loc[idx].to_frame().T,
+                token_df=token_df.iloc[i].to_frame().T,
                 only_not_added=True,
                 only_not_known=True,
                 only_not_suspended=False,
@@ -411,15 +410,15 @@ class Scheduler:
             # If all kanjis are known, trigger add_vocab_for_next_round
             if len(kanji_not_known_added_schedtoknown) == 0:
                 self.add_vocab_for_next_round(
-                    token=token_df.loc[idx, ColumnName.TOKEN],
-                    source_name=token_df.loc[idx, ColumnName.SOURCE_NAME],
+                    token=token_df.iloc[i][ColumnName.TOKEN],
+                    source_name=token_df.iloc[i][ColumnName.SOURCE_NAME],
                 )
             # Else, add to self.vocab_w_uncertain_status_df
             else:
                 self.vocab_w_uncertain_status_df = pd.concat(
                     [
                         self.vocab_w_uncertain_status_df,
-                        token_df.loc[idx].to_frame().T,
+                        token_df.iloc[i].to_frame().T,
                     ]
                 ).astype(DATA_MODEL[TableName.TOKENS])
 
@@ -607,6 +606,7 @@ class Scheduler:
         only_not_sched_to_added: bool,
         only_not_sched_to_known: bool,
         only_not_sched_to_suspended: bool,
+        drop_duplicates: bool = False,
     ) -> pd.DataFrame:
         """Extract [kanji, source] couples from all tokens"""
         kanjis_sources_df = pd.DataFrame(
@@ -652,6 +652,10 @@ class Scheduler:
                     [token for token, source_name in self.kanji_set_to_add_to_suspended]
                 )
             ]
+        if drop_duplicates is True:
+            kanjis_sources_df = kanjis_sources_df.drop_duplicates(
+                subset=[ColumnName.KANJI]
+            )
         return kanjis_sources_df
 
     def _make_voc_cards_from_query(

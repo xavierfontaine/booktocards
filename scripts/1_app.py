@@ -284,7 +284,7 @@ if len(scheduler.vocab_w_uncertain_status_df) == 0:
     studiable_tokens_df: pd.DataFrame = pd.concat(
         [
             # Priority 1, all sources
-            scheduler.get_studiable_voc(
+            on_the_fly_token_df := scheduler.get_studiable_voc(
                 min_count=0,
                 sort_seq_id=sort_by_seq_id,
                 sort_count=sort_by_count,
@@ -301,6 +301,9 @@ if len(scheduler.vocab_w_uncertain_status_df) == 0:
             ),
         ]
     )
+    # Tell how many on-the-fly items are available
+    n_studiable_tokens_on_the_fly = len(on_the_fly_token_df)
+    st.write(f"{n_studiable_tokens_on_the_fly} on-the-fly tokens available for study.")
     # Keep only the 1st occurrence of each token
     studiable_tokens_df = studiable_tokens_df.drop_duplicates(subset=ColumnName.TOKEN)
     if len(studiable_tokens_df) > n_shown_tokens:
